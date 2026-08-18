@@ -1,0 +1,970 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #f6f5f2;
+    color: #222;
+}
+
+
+/* ================= SIDEBAR ================= */
+
+.sidebar {
+
+    position: fixed;
+
+    left: 0;
+    top: 0;
+
+    width: 240px;
+    height: 100vh;
+
+    background: #171717;
+
+    color: white;
+
+    padding: 30px 20px;
+
+    display: flex;
+    flex-direction: column;
+}
+
+
+.logo {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 0 10px;
+
+    margin-bottom: 45px;
+}
+
+
+.logo span {
+    font-size: 28px;
+}
+
+
+.logo h2 {
+    font-size: 20px;
+}
+
+
+nav {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+
+nav a,
+.sidebar-bottom a {
+
+    text-decoration: none;
+
+    color: #aaa;
+
+    padding: 12px 14px;
+
+    border-radius: 9px;
+
+    font-size: 13px;
+
+    transition: 0.3s;
+}
+
+
+nav a:hover,
+.sidebar-bottom a:hover {
+
+    background: #292929;
+
+    color: white;
+}
+
+
+nav .active {
+
+    background: white;
+
+    color: #171717;
+}
+
+
+.sidebar-bottom {
+
+    margin-top: auto;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 5px;
+}
+
+
+
+/* ================= MAIN ================= */
+
+.main {
+
+    margin-left: 240px;
+
+    padding: 35px 50px;
+
+    max-width: 1550px;
+}
+
+
+
+/* ================= TOP BAR ================= */
+
+.topbar {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 30px;
+}
+
+
+.small-text {
+
+    color: #999;
+
+    font-size: 10px;
+
+    letter-spacing: 1.8px;
+
+    margin-bottom: 5px;
+}
+
+
+.topbar h1 {
+
+    font-size: 28px;
+}
+
+
+.profile {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+}
+
+
+.profile-pic {
+
+    width: 44px;
+
+    height: 44px;
+
+    border-radius: 50%;
+
+    background: #222;
+
+    color: white;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-weight: 600;
+}
+
+
+.profile p {
+
+    color: #999;
+
+    font-size: 11px;
+}
+
+
+
+/* ================= TODAY OUTFIT ================= */
+
+.today-outfit {
+
+    background: #222;
+
+    color: white;
+
+    min-height: 250px;
+
+    border-radius: 20px;
+
+    padding: 38px 42px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    overflow: hidden;
+}
+
+
+.today-content h2 {
+
+    font-size: 38px;
+
+    margin-bottom: 10px;
+}
+
+
+.today-content > p:not(.small-text) {
+
+    color: #bbb;
+
+    font-size: 13px;
+
+    margin-bottom: 25px;
+}
+
+
+.outfit-actions {
+
+    display: flex;
+
+    gap: 10px;
+}
+
+
+.outfit-actions button {
+
+    border: none;
+
+    background: white;
+
+    color: #222;
+
+    padding: 11px 18px;
+
+    border-radius: 8px;
+
+    font-family: inherit;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+
+.outfit-actions .secondary {
+
+    background: #333;
+
+    color: white;
+
+    border: 1px solid #555;
+}
+
+
+.today-clothes {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-right: 40px;
+}
+
+
+.big-cloth {
+
+    width: 100px;
+
+    height: 120px;
+
+    background: #f1f1f1;
+
+    color: #222;
+
+    border-radius: 15px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 55px;
+
+    transform: rotate(-4deg);
+}
+
+
+.big-cloth:nth-child(2) {
+
+    transform: rotate(3deg);
+
+    background: #dcdcdc;
+}
+
+
+.big-cloth:nth-child(3) {
+
+    transform: rotate(-2deg);
+
+    background: #cfcfcf;
+}
+
+
+
+/* ================= WARNING ================= */
+
+.warning-card {
+
+    margin-top: 20px;
+
+    background: #fff7e5;
+
+    border: 1px solid #f1dfb5;
+
+    border-radius: 14px;
+
+    padding: 18px 22px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 16px;
+}
+
+
+.warning-icon {
+
+    width: 45px;
+
+    height: 45px;
+
+    border-radius: 10px;
+
+    background: #ffe8a8;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 21px;
+
+    flex-shrink: 0;
+}
+
+
+.warning-card h3 {
+
+    font-size: 14px;
+
+    margin-bottom: 3px;
+}
+
+
+.warning-card p:not(.small-text) {
+
+    font-size: 12px;
+
+    color: #777;
+}
+
+
+.view-history {
+
+    margin-left: auto;
+
+    background: transparent;
+
+    border: none;
+
+    font-family: inherit;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+
+
+/* ================= STATS ================= */
+
+.stats {
+
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 18px;
+
+    margin: 25px 0;
+}
+
+
+.stat-card {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 15px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    border: 1px solid #eee;
+}
+
+
+.stat-icon {
+
+    width: 45px;
+
+    height: 45px;
+
+    background: #f0f0f0;
+
+    border-radius: 10px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 21px;
+}
+
+
+.stat-card h3 {
+
+    font-size: 22px;
+}
+
+
+.stat-card p {
+
+    color: #999;
+
+    font-size: 11px;
+}
+
+
+
+/* ================= SECTIONS ================= */
+
+.section {
+
+    margin-top: 38px;
+}
+
+
+.section-heading {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 18px;
+}
+
+
+.section-heading h2 {
+
+    font-size: 21px;
+}
+
+
+.section-heading a {
+
+    text-decoration: none;
+
+    color: #555;
+
+    font-size: 12px;
+}
+
+
+
+/* ================= OCCASIONS ================= */
+
+.occasion-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 16px;
+}
+
+
+.occasion-card {
+
+    background: white;
+
+    padding: 22px;
+
+    border-radius: 15px;
+
+    border: 1px solid #eee;
+
+    transition: 0.3s;
+
+    cursor: pointer;
+}
+
+
+.occasion-card:hover {
+
+    transform: translateY(-5px);
+}
+
+
+.occasion-icon {
+
+    width: 48px;
+
+    height: 48px;
+
+    background: #f0f0f0;
+
+    border-radius: 12px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 23px;
+
+    margin-bottom: 16px;
+}
+
+
+.occasion-card h3 {
+
+    font-size: 15px;
+
+    margin-bottom: 4px;
+}
+
+
+.occasion-card p {
+
+    color: #999;
+
+    font-size: 11px;
+
+    margin-bottom: 15px;
+}
+
+
+.occasion-card span {
+
+    font-size: 10px;
+
+    color: #555;
+
+    background: #f2f2f2;
+
+    padding: 5px 9px;
+
+    border-radius: 20px;
+}
+
+
+
+/* ================= CLOTHES ================= */
+
+.clothes-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 18px;
+}
+
+
+.clothing-card {
+
+    background: white;
+
+    border-radius: 15px;
+
+    overflow: hidden;
+
+    border: 1px solid #eee;
+}
+
+
+.clothing-image {
+
+    height: 180px;
+
+    background: #ededed;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 80px;
+}
+
+
+.clothing-image.blue {
+
+    background: #dfe4e8;
+}
+
+
+.clothing-image.dark {
+
+    background: #d5d5d5;
+}
+
+
+.clothing-image.shoes-bg {
+
+    background: #e5e5e5;
+}
+
+
+.clothing-info {
+
+    padding: 17px;
+}
+
+
+.clothing-info h3 {
+
+    font-size: 14px;
+}
+
+
+.clothing-info p {
+
+    color: #999;
+
+    font-size: 11px;
+
+    margin-top: 3px;
+
+    margin-bottom: 14px;
+}
+
+
+/* ================= LAUNDRY TOGGLE ================= */
+
+.laundry-toggle {
+
+    display: block;
+
+    cursor: pointer;
+}
+
+
+.laundry-toggle input {
+
+    display: none;
+}
+
+
+.laundry-toggle span {
+
+    display: block;
+
+    padding: 8px;
+
+    border-radius: 7px;
+
+    background: #f1f1f1;
+
+    text-align: center;
+
+    font-size: 10px;
+
+    transition: 0.3s;
+}
+
+
+.laundry-toggle input:checked + span {
+
+    background: #222;
+
+    color: white;
+}
+
+
+.laundry-toggle input:checked + span::after {
+
+    content: " ✓";
+}
+
+
+
+/* ================= LAUNDRY ================= */
+
+.laundry-info {
+
+    background: white;
+
+    border: 1px solid #eee;
+
+    border-radius: 15px;
+
+    padding: 22px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 16px;
+}
+
+
+.laundry-icon {
+
+    width: 55px;
+
+    height: 55px;
+
+    border-radius: 12px;
+
+    background: #eeeeee;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 26px;
+}
+
+
+.laundry-info h3 {
+
+    font-size: 14px;
+
+    margin-bottom: 3px;
+}
+
+
+.laundry-info p {
+
+    color: #999;
+
+    font-size: 11px;
+}
+
+
+
+/* ================= HISTORY ================= */
+
+.history-table {
+
+    background: white;
+
+    border: 1px solid #eee;
+
+    border-radius: 15px;
+
+    overflow: hidden;
+}
+
+
+.history-row {
+
+    display: grid;
+
+    grid-template-columns: 100px 2fr 1fr 120px;
+
+    padding: 17px 20px;
+
+    border-bottom: 1px solid #eee;
+
+    font-size: 11px;
+
+    align-items: center;
+}
+
+
+.history-row:last-child {
+
+    border-bottom: none;
+}
+
+
+.history-row.heading {
+
+    background: #f5f5f5;
+
+    color: #888;
+
+    font-size: 10px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1px;
+}
+
+
+.recent {
+
+    color: #777;
+
+    font-weight: 600;
+}
+
+
+.warning {
+
+    color: #a87900;
+
+    font-weight: 600;
+}
+
+
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 1100px) {
+
+    .stats,
+    .occasion-grid,
+    .clothes-grid {
+
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .today-clothes {
+
+        margin-right: 0;
+    }
+
+    .big-cloth {
+
+        width: 75px;
+
+        height: 90px;
+
+        font-size: 40px;
+    }
+}
+
+
+@media (max-width: 750px) {
+
+    .sidebar {
+
+        width: 70px;
+
+        padding: 25px 10px;
+    }
+
+
+    .logo {
+
+        justify-content: center;
+    }
+
+
+    .logo h2,
+    nav a,
+    .sidebar-bottom a {
+
+        font-size: 0;
+    }
+
+
+    .main {
+
+        margin-left: 70px;
+
+        padding: 25px;
+    }
+
+
+    .today-outfit {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 30px;
+    }
+
+
+    .today-clothes {
+
+        align-self: center;
+    }
+
+
+    .warning-card {
+
+        align-items: flex-start;
+
+        flex-wrap: wrap;
+    }
+
+
+    .view-history {
+
+        margin-left: 61px;
+    }
+
+
+    .stats,
+    .occasion-grid,
+    .clothes-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+
+    .history-row {
+
+        grid-template-columns: 1fr;
+
+        gap: 7px;
+    }
+}
