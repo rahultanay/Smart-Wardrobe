@@ -1,0 +1,124 @@
+package com.smartwardrobe;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.regex.Pattern;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
+@Service
+public class WardrobeStore {
+    static final Set<String> CATEGORIES = Set.of("Shirt", "Pants", "Shoes");
+    static final Set<String> COLORS = Set.of("White","Black","Grey","Navy","Blue","Beige","Brown","Green","Red","Pink","Purple","Yellow","Orange");
+    static final Set<String> OCCASIONS = Set.of("College","Office","Party","Friends","Date","Everyday");
+    static final Set<String> PATTERNS = Set.of("Solid","Striped","Checked","Printed");
+    final JdbcTemplate db;
+    public WardrobeStore(JdbcTemplate db) { this.db = db; }
+    public record Item(String id, String name, String category, String color, String pattern, List<String> occasions, String photo, boolean laundry, boolean archived, String createdAt) {}
+    public record ItemInput(String name, String category, String color, String pattern, List<String> occasions, String photo) {}
+    public record WornItem(String id, String name, String category) {}
+    public record Wear(String id, String wornAt, String occasion, List<WornItem> items) {}
+    public record WearInput(List<String> itemIds, String occasion, String wornAt) {}
+    public record Snapshot(int version, List<Item> items, List<Wear> history) {}
+    static void require(boolean valid, String message) { if (!valid) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message); }
+    private final org.springframework.jdbc.core.RowMapper<Item> itemMapper = (r,n) -> new Item(r.getString("id"),r.getString("name"),r.getString("category"),r.getString("color"),r.getString("pattern"),List.of(r.getString("occasions").split(",")),r.getString("photo"),r.getBoolean("laundry"),r.getBoolean("archived"),r.getString("created_at"));
+    public List<Item> items() {
+        return db.query("SELECT * FROM wardrobe_item ORDER BY created_at DESC", itemMapper);
+    }
+    Item find(String id) {
+        return db.query("SELECT * FROM wardrobe_item WHERE id=?",itemMapper,id).stream().findFirst().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Item not found"));
+    }
+    static void validate(ItemInput i) {
+        require(i != null && i.name()!=null && !i.name().isBlank() && i.name().trim().length()<=80,"Enter a name of 1–80 characters");
+        require(CATEGORIES.contains(Objects.toString(i.category(),"")),"Choose a valid category");
+        require(COLORS.contains(Objects.toString(i.color(),"")),"Choose a valid color");
+        require(PATTERNS.contains(Objects.toString(i.pattern(),"")),"Choose a valid pattern");
+        require(i.occasions()!=null && !i.occasions().isEmpty() && i.occasions().size()<=6 && i.occasions().stream().allMatch(o -> o!=null && OCCASIONS.contains(o)),"Choose at least one valid occasion");
+        require(i.photo()!=null && i.photo().length()<=2_000_000 && Pattern.matches("data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+",i.photo()),"Add a JPEG, PNG, or WebP photo under 1.5 MB");
+        try {
+            byte[] bytes=Base64.getDecoder().decode(i.photo().substring(i.photo().indexOf(',')+1));
+            try (var stream=javax.imageio.ImageIO.createImageInputStream(new java.io.ByteArrayInputStream(bytes))) {
+                var readers=javax.imageio.ImageIO.getImageReaders(stream);
+                require(readers.hasNext(),"Photo must be a valid JPEG or PNG image");
+                var reader=readers.next();
+                try {
+                    reader.setInput(stream);
+                    require(reader.getWidth(0)<=2000 && reader.getHeight(0)<=2000,"Photo must be up to 2000 pixels per side");
+                    require(reader.read(0)!=null,"Invalid photo");
+                } finally { reader.dispose(); }
+            }
+        } catch (java.io.IOException | IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid photo"); }
+    }
+    @Transactional
+    public Item create(ItemInput i) {
+        validate(i); String id=UUID.randomUUID().toString();
+        db.update("INSERT INTO wardrobe_item (id,name,category,color,pattern,occasions,photo,created_at) VALUES (?,?,?,?,?,?,?,?)",id,i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",new LinkedHashSet<>(i.occasions())),i.photo(),Instant.now().toString());
+        return find(id);
+    }
+    @Transactional
+    public Item update(String id, ItemInput i) {
+        find(id); validate(i);
+        db.update("UPDATE wardrobe_item SET name=?,category=?,color=?,pattern=?,occasions=?,photo=? WHERE id=?",i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",new LinkedHashSet<>(i.occasions())),i.photo(),id);
+        return find(id);
+    }
+    @Transactional
+    public Item laundry(String id, boolean value) {
+        Item item=find(id); require(!item.archived(),"Restore this item before changing its laundry status");
+        if(item.laundry()!=value) {
+            db.update("UPDATE wardrobe_item SET laundry=? WHERE id=?",value,id);
+            db.update("INSERT INTO laundry_event (item_id,changed_at,in_laundry) VALUES (?,?,?)",id,Instant.now().toString(),value);
+        }
+        return find(id);
+    }
+    @Transactional
+    public Item archive(String id, boolean value) { find(id); db.update("UPDATE wardrobe_item SET archived=? WHERE id=?",value,id); return find(id); }
+    public List<Wear> history() {
+        return db.query("SELECT * FROM wear_event ORDER BY CAST(worn_at AS TIMESTAMP WITH TIME ZONE) DESC", (r,n) -> new Wear(r.getString("id"),r.getString("worn_at"),r.getString("occasion"),db.query("SELECT * FROM wear_item WHERE event_id=? ORDER BY category_snapshot",(w,k)-> new WornItem(w.getString("item_id"),w.getString("name_snapshot"),w.getString("category_snapshot")),r.getString("id"))));
+    }
+    @Transactional
+    public Wear wear(WearInput input) {
+        require(input!=null && input.itemIds()!=null && input.itemIds().size()==3 && new HashSet<>(input.itemIds()).size()==3,"Select one shirt, one pair of pants, and one pair of shoes");
+        require(OCCASIONS.contains(Objects.toString(input.occasion(),"")),"Choose a valid occasion");
+        Instant time;
+        try { time=Instant.parse(input.wornAt()); } catch (Exception e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Choose a valid wear time"); }
+        require(!time.isAfter(Instant.now().plusSeconds(60)),"Wear time cannot be in the future");
+        List<Item> chosen=input.itemIds().stream().map(this::find).toList();
+        require(chosen.stream().noneMatch(i -> i.archived() || i.laundry()),"This outfit contains unavailable items");
+        require(chosen.stream().map(Item::category).collect(java.util.stream.Collectors.toSet()).equals(CATEGORIES),"Choose exactly one item from each category");
+        String id=UUID.randomUUID().toString();
+        db.update("INSERT INTO wear_event (id,worn_at,occasion) VALUES (?,?,?)",id,time.toString(),input.occasion());
+        for(Item i:chosen) db.update("INSERT INTO wear_item VALUES (?,?,?,?)",id,i.id(),i.name(),i.category());
+        return history().stream().filter(w->w.id().equals(id)).findFirst().orElseThrow();
+    }
+    @Transactional(readOnly=true)
+    public Snapshot snapshot() { return new Snapshot(1,items(),history()); }
+    @Transactional
+    public Map<String,Integer> restore(Snapshot data) {
+        require(data!=null && data.version()==1 && data.items()!=null && data.history()!=null && data.items().size()<=1000 && data.history().size()<=10000,"Unsupported backup or backup too large");
+        Set<String> ids=new HashSet<>();
+        for(Item i:data.items()) {
+            require(i!=null && i.id()!=null && i.createdAt()!=null,"Invalid backup item");
+            try { UUID.fromString(i.id()); Instant.parse(i.createdAt()); } catch(Exception e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid backup item identifier or date"); }
+            require(ids.add(i.id()),"Duplicate backup item"); validate(new ItemInput(i.name(),i.category(),i.color(),i.pattern(),i.occasions(),i.photo()));
+        }
+        int added=0,events=0;
+        for(Item i:data.items()) if(db.queryForObject("SELECT COUNT(*) FROM wardrobe_item WHERE id=?",Integer.class,i.id())==0) {
+            db.update("INSERT INTO wardrobe_item VALUES (?,?,?,?,?,?,?,?,?,?)",i.id(),i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",i.occasions()),i.photo(),i.laundry(),i.archived(),i.createdAt()); added++;
+        }
+        Set<String> wearIds=new HashSet<>();
+        for(Wear w:data.history()) {
+            require(w!=null && w.id()!=null && w.items()!=null && w.items().size()==3 && w.items().stream().allMatch(Objects::nonNull) && OCCASIONS.contains(Objects.toString(w.occasion(),"")),"Invalid backup wear event");
+            try { UUID.fromString(w.id()); require(w.wornAt()!=null,"Missing backup event date"); require(!Instant.parse(w.wornAt()).isAfter(Instant.now().plusSeconds(60)),"Backup contains a future wear event"); } catch(IllegalArgumentException | java.time.format.DateTimeParseException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid backup event identifier or date"); }
+            require(wearIds.add(w.id()) && w.items().stream().map(WornItem::id).distinct().count()==3 && w.items().stream().map(WornItem::category).collect(java.util.stream.Collectors.toSet()).equals(CATEGORIES),"Invalid backup outfit");
+            for(WornItem wi:w.items()) { require(wi.name()!=null && !wi.name().isBlank() && wi.name().length()<=80,"Invalid backup item name"); find(wi.id()); }
+            if(db.queryForObject("SELECT COUNT(*) FROM wear_event WHERE id=?",Integer.class,w.id())==0) {
+                db.update("INSERT INTO wear_event VALUES (?,?,?)",w.id(),w.wornAt(),w.occasion());
+                for(WornItem wi:w.items()) db.update("INSERT INTO wear_item VALUES (?,?,?,?)",w.id(),wi.id(),wi.name(),wi.category()); events++;
+            }
+        }
+        return Map.of("itemsAdded",added,"eventsAdded",events);
+    }
+}

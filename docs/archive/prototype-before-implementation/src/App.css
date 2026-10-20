@@ -1,0 +1,392 @@
+:root {
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --ink: #1c2438;
+  --muted: #6b7489;
+  --line: #e2e6ef;
+  --denim: #2b4a8b;
+  --denim-deep: #1a2a52;
+  --denim-soft: #dfe8fb;
+  --amber: #f2a93b;
+  --amber-soft: #fff4de;
+  --green: #2f8f5b;
+  --green-soft: #e3f4ea;
+  --radius: 16px;
+  --sidebar-w: 240px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+h1, h2, h3 { line-height: 1.25; font-weight: 600; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible, .occasion-card:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.small-text { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.04em; }
+
+/* ---------- Layout ---------- */
+.app-shell { min-height: 100vh; }
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-w);
+  background: var(--denim-deep);
+  color: #e9eefc;
+  padding: 28px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  z-index: 10;
+}
+.logo { display: flex; align-items: center; gap: 10px; padding: 0 10px; }
+.logo span { font-size: 1.6rem; }
+.logo h2 { font-size: 1.25rem; }
+
+.sidebar nav { display: flex; flex-direction: column; gap: 4px; }
+.sidebar a {
+  display: block;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  color: #c5d0ee;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar a:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.sidebar a.active { background: var(--denim); color: #fff; }
+.sidebar-bottom {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.main {
+  margin-left: var(--sidebar-w);
+  padding: 32px clamp(20px, 4vw, 48px) 64px;
+  max-width: calc(var(--sidebar-w) + 1180px);
+}
+.main section[id] { scroll-margin-top: 24px; }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.topbar h1 { font-size: 1.75rem; }
+.profile { display: flex; align-items: center; gap: 12px; }
+.profile p { font-size: 0.8rem; color: var(--muted); }
+.profile-pic {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--denim);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+}
+
+/* ---------- Today's outfit ---------- */
+.today-outfit {
+  background: linear-gradient(135deg, var(--denim-deep), var(--denim));
+  color: #fff;
+  border-radius: 24px;
+  padding: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.today-content { flex: 1 1 280px; }
+.today-content .small-text { color: #b7c6ee; }
+.today-content h2 { font-size: 1.9rem; margin: 6px 0 4px; }
+.today-content > p:not(.small-text) { color: #d7e0f8; }
+
+.outfit-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+.outfit-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 22px;
+  font-weight: 500;
+  background: #fff;
+  color: var(--denim-deep);
+  transition: transform 0.1s, opacity 0.15s;
+}
+.outfit-actions button:hover:not(:disabled) { transform: translateY(-1px); }
+.outfit-actions button.secondary {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+}
+.outfit-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.today-clothes { display: flex; gap: 14px; }
+.big-cloth {
+  width: 96px; height: 96px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  display: grid;
+  place-items: center;
+  font-size: 2.8rem;
+}
+
+/* ---------- Repeat warning ---------- */
+.warning-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--amber-soft);
+  border: 1px solid #f3d9a4;
+  border-left: 5px solid var(--amber);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  margin-bottom: 24px;
+}
+.warning-icon { font-size: 1.8rem; }
+.warning-card > div:nth-child(2) { flex: 1 1 240px; }
+.warning-card h3 { font-size: 1rem; }
+.warning-card p:last-of-type { font-size: 0.86rem; color: var(--muted); }
+.view-history {
+  border: 1.5px solid var(--amber);
+  background: transparent;
+  color: #8a5a0a;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-weight: 500;
+}
+.view-history:hover { background: var(--amber); color: #fff; }
+
+/* ---------- Stats ---------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  margin-bottom: 40px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.stat-icon {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  background: var(--denim-soft);
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+}
+.stat-card h3 { font-size: 1.6rem; }
+.stat-card p { font-size: 0.82rem; color: var(--muted); }
+
+/* ---------- Sections ---------- */
+.section { margin-bottom: 44px; }
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.section-heading h2 { font-size: 1.35rem; }
+.section-heading > a { font-size: 0.86rem; color: var(--denim); font-weight: 500; }
+.section-heading > a:hover { text-decoration: underline; }
+
+/* ---------- Occasions ---------- */
+.occasion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+.occasion-card {
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.occasion-card:hover { border-color: #b8c7ec; }
+.occasion-card.selected-occasion {
+  border-color: var(--denim);
+  background: var(--denim-soft);
+}
+.occasion-icon { font-size: 1.8rem; margin-bottom: 8px; }
+.occasion-card h3 { font-size: 1.05rem; }
+.occasion-card p { font-size: 0.84rem; color: var(--muted); margin: 2px 0 10px; }
+.occasion-card span { font-size: 0.8rem; font-weight: 500; color: var(--denim); }
+
+/* ---------- Wardrobe ---------- */
+.clothes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 18px;
+}
+.clothing-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+.clothing-card.in-laundry { opacity: 0.6; }
+.clothing-card.in-laundry .clothing-image { filter: grayscale(1); }
+
+.clothing-image {
+  height: 150px;
+  display: grid;
+  place-items: center;
+  font-size: 4rem;
+  background: #edf0f6;
+}
+.clothing-image.blue { background: #cfe0ff; }
+.clothing-image.dark { background: #33477a; }
+.clothing-image.shoes-bg { background: #efe9df; }
+
+.clothing-info { padding: 16px; }
+.clothing-info h3 { font-size: 1rem; }
+.clothing-info p { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+.laundry-button {
+  width: 100%;
+  border: 1.5px solid var(--denim);
+  background: transparent;
+  color: var(--denim);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+.laundry-button:hover { background: var(--denim-soft); }
+.in-laundry .laundry-button {
+  background: var(--green-soft);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+/* ---------- Laundry ---------- */
+.laundry-list { display: flex; flex-direction: column; gap: 12px; }
+.empty-laundry, .empty-history {
+  background: var(--surface);
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.laundry-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.laundry-item-info { display: flex; align-items: center; gap: 12px; }
+.laundry-item-icon {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  background: var(--denim-soft);
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+}
+.return-button {
+  border: 0;
+  background: var(--denim);
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+.return-button:hover { background: var(--denim-deep); }
+
+/* ---------- History ---------- */
+.history-table {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.history-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1.2fr 1fr;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  align-items: center;
+}
+.history-row.heading {
+  border-top: 0;
+  background: #f7f8fc;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.history-table .empty-history { border: 0; border-radius: 0; border-top: 1px solid var(--line); }
+.history-row .recent {
+  justify-self: start;
+  background: var(--green-soft);
+  color: var(--green);
+  border-radius: 999px;
+  padding: 2px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    overflow-x: auto;
+  }
+  .sidebar nav { flex-direction: row; }
+  .sidebar a { white-space: nowrap; padding: 8px 12px; }
+  .sidebar-bottom { display: none; }
+  .logo h2 { display: none; }
+  .main { margin-left: 0; padding-top: 24px; }
+}
+@media (max-width: 560px) {
+  .today-outfit { padding: 22px; }
+  .big-cloth { width: 72px; height: 72px; font-size: 2.1rem; }
+  .history-row { grid-template-columns: 1fr 1.6fr 1fr; }
+  .history-row span:nth-child(4) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; }
+}
