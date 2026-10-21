@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CATEGORIES,
-  OCCASIONS,
   COLORS,
   api,
-  recommend,
   lastWear,
   ago,
   dateLabel,
@@ -14,6 +12,7 @@ import Icon from "./components/Icon.jsx";
 import ItemForm from "./components/ItemForm.jsx";
 import WearForm from "./components/WearForm.jsx";
 import Modal from "./components/Modal.jsx";
+import OutfitMaker from "./components/OutfitMaker.jsx";
 function App() {
   const [items, setItems] = useState([]),
     [history, setHistory] = useState([]),
@@ -21,10 +20,10 @@ function App() {
     [connected, setConnected] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
-  const [view, setView] = useState("overview"),
-    [occasion, setOccasion] = useState("College"),
+  const [view, setView] = useState("outfits"),
+    [occasion, setOccasion] = useState("Everyday"),
+    [dressStyle, setDressStyle] = useState("Casual"),
     [anchor, setAnchor] = useState(""),
-    [outfitIndex, setOutfitIndex] = useState(0),
     [category, setCategory] = useState("All"),
     [search, setSearch] = useState(""),
     [showArchive, setShowArchive] = useState(false),
@@ -67,17 +66,9 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [notice]);
-  useEffect(() => {
-    setOutfitIndex(0);
-  }, [occasion, anchor, items, preferences]);
   const active = items.filter((i) => !i.archived),
     available = active.filter((i) => !i.laundry),
     laundry = active.filter((i) => i.laundry);
-  const outfits = useMemo(
-    () => recommend(items, history, occasion, anchor, preferences.colors),
-    [items, history, occasion, anchor, preferences],
-  );
-  const outfit = outfits[outfitIndex % Math.max(1, outfits.length)];
   const filtered = items.filter(
     (i) =>
       i.archived === showArchive &&
@@ -194,14 +185,14 @@ function App() {
   const nav = [
     ["overview", "spark", "Overview"],
     ["wardrobe", "wardrobe", "My wardrobe"],
-    ["outfits", "spark", "Outfit studio"],
+    ["outfits", "spark", "Outfit maker"],
     ["laundry", "laundry", "Laundry"],
     ["history", "history", "Wear journal"],
   ];
   const titles = {
     overview: "A little less “what to wear?”",
     wardrobe: "Good clothes. All yours.",
-    outfits: "Find your next combination.",
+    outfits: "Your next outfit starts here.",
     laundry: "A fresh start, on repeat.",
     history: "Every outfit has a story.",
     settings: "Make yourself at home.",
@@ -209,14 +200,12 @@ function App() {
   const subtitles = {
     overview: "Your wardrobe, thoughtfully put together.",
     wardrobe: "Photograph it. Organize it. Wear it your way.",
-    outfits: "Start with one piece. Let the rest fall into place.",
+    outfits:
+      "Choose how you want to dress. Build around a shirt, T-shirt, or pants.",
     laundry: "Keep track of what’s resting and what’s ready.",
     history: "Remember what you wore, when, and where.",
     settings: "Your preferences, your data, your wardrobe.",
   };
-  const missing = CATEGORIES.filter(
-    (cat) => !available.some((i) => i.category === cat),
-  );
   function wardrobeCard(i) {
     const last = lastWear(history, i.id),
       same = lastWear(history, i.id, occasion);
@@ -249,6 +238,9 @@ function App() {
             {i.color}
           </p>
           <h3>{i.name}</h3>
+          <p className="item-style-tags">
+            {(i.styles || ["Casual"]).join(" · ")}
+          </p>
           <p className="last-worn">
             {last ? `${ago(last.wornAt)} · ${last.occasion}` : "Not worn yet"}
           </p>
@@ -332,128 +324,23 @@ function App() {
   }
   function outfitPanel() {
     return (
-      <>
-        <div className="occasion-row">
-          <span className="eyebrow">DRESSING FOR</span>
-          <div className="tabs" aria-label="Choose occasion">
-            {OCCASIONS.map((o) => (
-              <button
-                key={o}
-                className={occasion === o ? "selected" : ""}
-                onClick={() => setOccasion(o)}
-                aria-pressed={occasion === o}
-              >
-                {o}
-              </button>
-            ))}
-          </div>
-        </div>
-        {anchor && (
-          <div className="anchor-note">
-            Starting with{" "}
-            <strong>
-              {items.find((i) => i.id === anchor)?.name ||
-                "an unavailable item"}
-            </strong>
-            <button onClick={() => setAnchor("")}>Clear selection ×</button>
-          </div>
-        )}
-        {outfit ? (
-          <section className="outfit-panel">
-            <div className="outfit-intro">
-              <span className="eyebrow">A LITTLE INSPIRATION</span>
-              <h2>
-                {occasion === "College"
-                  ? "Campus, with confidence."
-                  : occasion === "Party"
-                    ? "An evening worth dressing for."
-                    : occasion === "Office"
-                      ? "Ready for the day ahead."
-                      : "Your next good outfit."}
-              </h2>
-              <p>{outfit.reason}</p>
-              <div className="outfit-controls">
-                <button
-                  className="button primary"
-                  disabled={!connected || pending}
-                  onClick={() => setModal({ type: "wear", outfit })}
-                >
-                  Wear this <Icon name="check" size={18} />
-                </button>
-                <button
-                  className="button subtle"
-                  disabled={outfits.length < 2}
-                  onClick={() => setOutfitIndex((n) => n + 1)}
-                >
-                  Try another ↻
-                </button>
-              </div>
-              <span className="outfit-counter">
-                {(outfitIndex % outfits.length) + 1} of {outfits.length}{" "}
-                suggestions
-              </span>
-            </div>
-            <div className="outfit-pieces">
-              {outfit.items.map((i) => (
-                <div className="outfit-piece" key={i.id}>
-                  <div>
-                    <img src={i.photo} alt={i.name} />
-                  </div>
-                  <span className="eyebrow">{i.category}</span>
-                  <h3>{i.name}</h3>
-                  <p>
-                    {lastWear(history, i.id)
-                      ? `${ago(lastWear(history, i.id).wornAt)} · ${lastWear(history, i.id).occasion}`
-                      : "A fresh choice"}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : (
-          <section className="outfit-empty">
-            <Icon name="spark" size={36} />
-            <h2>
-              {loading
-                ? "Opening your wardrobe…"
-                : active.length
-                  ? "Let’s complete the picture."
-                  : "Your best outfits are already in your closet."}
-            </h2>
-            <p>
-              {!active.length
-                ? "Add photos of a shirt, pants, and shoes to find your first combination."
-                : missing.length
-                  ? `Add available items in: ${missing.join(", ")}. Laundry items are excluded.`
-                  : "No full combination fits this occasion. Change the occasion, edit item tags, or clear your selected item."}
-            </p>
-            <button
-              className="button primary"
-              disabled={!connected}
-              onClick={() => setModal({ type: "item" })}
-            >
-              Add a clothing item <Icon name="plus" />
-            </button>
-          </section>
-        )}
-        {outfit?.prior && (
-          <div className="repeat-note">
-            <Icon name="history" />
-            <div>
-              <strong>A familiar favorite.</strong>
-              <p>
-                You wore this combination{" "}
-                {ago(outfit.prior.wornAt).toLowerCase()} for{" "}
-                {outfit.prior.occasion}. Repeating a good outfit is always your
-                choice.
-              </p>
-            </div>
-            <button onClick={() => navigate("history")}>
-              See journal <Icon name="arrow" size={16} />
-            </button>
-          </div>
-        )}
-      </>
+      <OutfitMaker
+        items={items}
+        history={history}
+        occasion={occasion}
+        setOccasion={setOccasion}
+        dressStyle={dressStyle}
+        setDressStyle={setDressStyle}
+        anchor={anchor}
+        setAnchor={setAnchor}
+        preferred={preferences.colors}
+        connected={connected}
+        loading={loading}
+        pending={pending}
+        onWear={(outfit) => setModal({ type: "wear", outfit })}
+        onAdd={() => setModal({ type: "item" })}
+        onEdit={(item) => setModal({ type: "item", item })}
+      />
     );
   }
   return (
@@ -528,7 +415,7 @@ function App() {
               : view === "history"
                 ? "Wear journal"
                 : view === "outfits"
-                  ? "Outfit studio"
+                  ? "Outfit maker"
                   : view === "settings"
                     ? "Preferences"
                     : view === "laundry"
@@ -698,47 +585,7 @@ function App() {
               )}
             </>
           )}
-          {view === "outfits" && (
-            <>
-              {outfitPanel()}
-              <section className="section">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">HAVE SOMETHING IN MIND?</p>
-                    <h2>Start with a favorite</h2>
-                  </div>
-                </div>
-                <p className="section-description">
-                  Pick a shirt, pants, or shoes. We’ll build around it using
-                  your available pieces.
-                </p>
-                <div className="anchor-picker">
-                  {available.map((i) => (
-                    <button
-                      key={i.id}
-                      className={anchor === i.id ? "selected" : ""}
-                      onClick={() => setAnchor(i.id)}
-                      aria-pressed={anchor === i.id}
-                    >
-                      <img src={i.photo} alt="" />
-                      <span>
-                        {i.name}
-                        <small>
-                          {i.category} · {i.color}
-                        </small>
-                      </span>
-                      {anchor === i.id && <Icon name="check" size={17} />}
-                    </button>
-                  ))}
-                </div>
-                {!available.length && (
-                  <p className="small-empty">
-                    Your available pieces will appear here.
-                  </p>
-                )}
-              </section>
-            </>
-          )}
+          {view === "outfits" && outfitPanel()}
           {view === "laundry" && (
             <>
               <div className="laundry-summary">
@@ -821,7 +668,9 @@ function App() {
                     <article className="journal-entry" key={w.id}>
                       <div className="journal-heading">
                         <div>
-                          <span className="occasion-badge">{w.occasion}</span>
+                          <span className="occasion-badge">
+                            {w.occasion} · {w.dressStyle || "Casual"}
+                          </span>
                           <h2>{ago(w.wornAt)}</h2>
                           <p>{dateLabel(w.wornAt)}</p>
                         </div>
@@ -871,7 +720,7 @@ function App() {
                   <Icon name="history" size={36} />
                   <h2>Your next outfit starts the story.</h2>
                   <p>
-                    Choose “Wear this” in the outfit studio to record your first
+                    Choose “Wear this” in the outfit maker to record your first
                     look.
                   </p>
                   <button
@@ -1018,6 +867,7 @@ function App() {
       {modal?.type === "item" && (
         <ItemForm
           item={modal.item}
+          initialStyle={dressStyle}
           onClose={() => setModal(null)}
           onSave={saveItem}
         />
@@ -1025,7 +875,7 @@ function App() {
       {modal?.type === "wear" && (
         <WearForm
           outfit={modal.outfit}
-          occasion={occasion}
+          occasion={modal.outfit.occasion}
           onClose={() => setModal(null)}
           onSave={saveWear}
         />

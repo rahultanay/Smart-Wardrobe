@@ -1,13 +1,17 @@
 # Verification
 
-- Frontend production build: passed.
-- Java Spring Boot package: passed.
-- JavaScript matching regressions: 7 tests passed.
-- Java backend integration suite: 6 tests passed against an isolated in-memory H2 SQL database.
-- Live application: served the interface and API together from Spring Boot on port 8080.
-- Browser: overview, empty-wardrobe guidance, item dialog, preferences, and navigation inspected. Mobile overview checked at 390 pixels with no horizontal page overflow; desktop checked at 1440 pixels.
-- Manual browser upload: not completed. The browser's file-upload permission gate declined the synthetic fixture upload. No workaround upload was attempted. Photo validation and persistence are covered by backend integration tests; the browser file-selection and image-processing path still needs a user-allowed end-to-end check.
+## Outfit maker update
 
-The current machine uses Java 26.0.2.1. Builds and integration tests passed on it; Java 21 is recommended because Spring Boot 3.5 officially supports Java 17–25.
+- Frontend production build passed.
+- Java Spring Boot package passed.
+- JavaScript matching suite: 16 tests passed.
+- Backend integration suite: 10 tests passed against isolated in-memory H2 databases.
+- Regression checks cover dress styles, T-shirt eligibility, formal exclusions, shirt/pants/shoe anchors, occasion restrictions on all items, unavailable items, optional footwear, alternative-combination variety, recent wear, history, archive, and backup restoration.
+- Phase-one schema migration tested with preserved wardrobe, laundry status, and wear records. Migration ran twice successfully. Format-1 backups remain restorable; format-2 backups preserve dress styles.
+- Live startup was checked using a copy of the pre-update file database before installation.
+- Browser checked the default outfit-maker opening screen, formal/office selection, item editor, T-shirt style options, and responsive empty-wardrobe guidance.
+- Desktop checked at 1440 pixels and mobile at 390 pixels. Document width matched viewport width at both sizes.
+- The existing wardrobe was empty during manual browser testing, so populated combinations were covered by matching tests rather than a manual populated-wardrobe browser walkthrough.
+- The phase-one browser-upload permission refusal was respected; no workaround upload was attempted. Photo validation remains covered by backend tests.
 
-Synthetic test imagery and the temporary UI-test database are kept outside the delivered project. The user's wardrobe starts empty.
+Java 26.0.2.1 was used on this machine; Java 21 remains recommended for Spring Boot 3.5.

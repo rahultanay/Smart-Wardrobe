@@ -1,4 +1,35 @@
-export const CATEGORIES = ["Shirt", "Pants", "Shoes"];
+export const CATEGORIES = [
+  "Shirt",
+  "T-shirt",
+  "Hoodie",
+  "Traditional",
+  "Pants",
+  "Shoes",
+];
+export const DRESS_STYLES = ["Formal", "Semi-formal", "Casual", "Traditional"];
+export const TOP_CATEGORIES = ["Shirt", "T-shirt", "Hoodie", "Traditional"];
+export function roleOf(item) {
+  return TOP_CATEGORIES.includes(item.category) ? "Top" : item.category;
+}
+export function stylesForCategory(category) {
+  if (category === "T-shirt") return ["Semi-formal", "Casual"];
+  if (category === "Hoodie") return ["Casual"];
+  if (category === "Traditional") return ["Traditional"];
+  if (category === "Shirt") return ["Formal", "Semi-formal", "Casual"];
+  return DRESS_STYLES;
+}
+export function itemStyles(item) {
+  return (
+    item.styles ?? [item.category === "Traditional" ? "Traditional" : "Casual"]
+  );
+}
+export function fitsContext(item, occasion, dressStyle) {
+  return (
+    itemStyles(item).includes(dressStyle) &&
+    stylesForCategory(item.category).includes(dressStyle) &&
+    (item.occasions.includes(occasion) || item.occasions.includes("Everyday"))
+  );
+}
 export const OCCASIONS = [
   "College",
   "Office",
@@ -6,6 +37,7 @@ export const OCCASIONS = [
   "Friends",
   "Date",
   "Everyday",
+  "Outing",
 ];
 export const COLORS = {
   White: "#eeeae0",
@@ -77,6 +109,7 @@ export function recommend(
   occasion,
   anchorId = "",
   preferred = [],
+  dressStyle = "Casual",
 ) {
   const latestById = new Map(),
     latestByKey = new Map();
@@ -98,22 +131,24 @@ export function recommend(
     )
       latestByKey.set(key, wear);
   }
-  const available = items.filter((i) => !i.archived && !i.laundry);
+  const available = items.filter(
+    (i) =>
+      !i.archived &&
+      !i.laundry &&
+      CATEGORIES.includes(i.category) &&
+      fitsContext(i, occasion, dressStyle),
+  );
   const anchor = available.find((i) => i.id === anchorId);
+  // A selected piece must fit the context too. Never silently drop it or weaken the dress code.
   if (anchorId && !anchor) return [];
-  // An explicit occasion tag is respected; Everyday is an opt-in versatile tag.
-  const groups = CATEGORIES.map((cat) =>
+  const groups = ["Top", "Pants", "Shoes"].map((role) =>
     available.filter(
       (i) =>
-        i.category === cat &&
-        (!anchor || anchor.category !== cat || i.id === anchor.id) &&
-        (i.id === anchorId ||
-          i.occasions.includes(occasion) ||
-          i.occasions.includes("Everyday")),
+        roleOf(i) === role &&
+        (!anchor || roleOf(anchor) !== role || i.id === anchor.id),
     ),
   );
-  if (groups.some((g) => !g.length)) return [];
-  // Rank candidates before bounding work for large wardrobes. Include the anchor.
+  if (!groups[0].length || !groups[1].length) return [];
   const rank = (i) =>
     (i.occasions.includes(occasion) ? 4 : 0) +
     (preferred.includes(i.color) ? 2 : 0) +
@@ -125,14 +160,15 @@ export function recommend(
     g.sort((a, b) => rank(b) - rank(a) || a.id.localeCompare(b.id)),
   );
   const result = [];
-  for (const shirt of groups[0].slice(0, 20))
+  // Shoes complete a look when available; they never block top-and-pants suggestions.
+  const shoeChoices = groups[2].length ? groups[2].slice(0, 20) : [null];
+  for (const top of groups[0].slice(0, 20))
     for (const pants of groups[1].slice(0, 20))
-      for (const shoes of groups[2].slice(0, 20)) {
-        const outfit = [shirt, pants, shoes];
+      for (const shoes of shoeChoices) {
+        const outfit = [top, pants, ...(shoes ? [shoes] : [])];
         const matching =
-          pairScore(shirt, pants) +
-          pairScore(pants, shoes) +
-          pairScore(shirt, shoes);
+          pairScore(top, pants) +
+          (shoes ? pairScore(pants, shoes) + pairScore(top, shoes) : 0);
         const printPenalty =
           Math.max(0, outfit.filter((i) => i.pattern !== "Solid").length - 1) *
           3;
@@ -146,20 +182,45 @@ export function recommend(
           outfit.reduce((sum, i) => sum + rank(i), 0) -
           printPenalty -
           (prior ? Math.max(0, 10 - daysAgo(prior.wornAt)) : 0);
-        const reason = neutrals.has(pants.color)
-          ? `${pants.color} pants provide a neutral base for your ${shirt.color.toLowerCase()} shirt.`
-          : `${shirt.color} and ${pants.color.toLowerCase()} create ${pairScore(shirt, pants) >= 4 ? "a balanced color pairing" : "an expressive color pairing"}.`;
+        const pairing = neutrals.has(pants.color)
+          ? `${pants.color} pants give your ${top.color.toLowerCase()} ${top.category.toLowerCase()} a neutral base.`
+          : `${top.color} and ${pants.color.toLowerCase()} make ${pairScore(top, pants) >= 4 ? "a balanced" : "a bolder"} pairing.`;
         result.push({
           key,
           items: outfit,
           score,
           prior,
-          reason: `${reason} ${printPenalty ? "Multiple patterns make this a bolder option." : "Patterns stay easy to combine."}`,
+          dressStyle,
+          occasion,
+          reason: `${pairing} ${shoes ? `${shoes.color} shoes complete the look.` : "Add suitable shoes to complete this look."}`,
         });
       }
-  return result
-    .sort((a, b) => b.score - a.score || a.key.localeCompare(b.key))
-    .slice(0, 30);
+  const sorted = result.sort(
+    (a, b) => b.score - a.score || a.key.localeCompare(b.key),
+  );
+  // Round-robin across top/bottom pairs so shoe variants cannot crowd out clothing alternatives.
+  const buckets = new Map();
+  for (const look of sorted) {
+    const key = look.items
+      .slice(0, 2)
+      .map((i) => i.id)
+      .join("|");
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(look);
+  }
+  const diverse = [];
+  for (let round = 0; diverse.length < 30; round++) {
+    let added = false;
+    for (const bucket of buckets.values()) {
+      if (bucket[round]) {
+        diverse.push(bucket[round]);
+        added = true;
+        if (diverse.length === 30) break;
+      }
+    }
+    if (!added) break;
+  }
+  return diverse;
 }
 export async function api(path, method = "GET", body) {
   let response;

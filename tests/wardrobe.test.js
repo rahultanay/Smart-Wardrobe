@@ -86,3 +86,93 @@ test("missing categories and empty wardrobes return no fabricated suggestions", 
   assert.deepEqual(recommend([], [], "College"), []);
   assert.deepEqual(recommend([closet[0]], [], "College"), []);
 });
+
+const styled = (id, category, color, styles, extra = {}) =>
+  item(id, category, color, { styles, ...extra });
+const mixed = [
+  styled("formal-shirt", "Shirt", "White", ["Formal", "Semi-formal", "Casual"]),
+  styled("navy-shirt", "Shirt", "Navy", ["Formal", "Semi-formal"]),
+  styled("tee", "T-shirt", "Blue", ["Casual", "Semi-formal"]),
+  styled("hoodie", "Hoodie", "Grey", ["Casual"]),
+  styled("kurta", "Traditional", "White", ["Traditional"]),
+  styled("trousers", "Pants", "Beige", ["Formal", "Semi-formal", "Casual"]),
+  styled("grey-pants", "Pants", "Grey", ["Formal", "Semi-formal", "Casual"]),
+  styled("jeans", "Pants", "Blue", ["Casual"]),
+  styled("traditional-bottoms", "Pants", "White", ["Traditional"]),
+  styled("dress-shoes", "Shoes", "Brown", ["Formal", "Semi-formal"]),
+  styled("sneakers", "Shoes", "White", ["Casual"]),
+];
+test("formal combinations exclude casual tops, jeans, and sneakers", () => {
+  const looks = recommend(mixed, [], "Office", "", [], "Formal");
+  assert.ok(looks.length >= 4);
+  for (const look of looks) {
+    assert.equal(look.dressStyle, "Formal");
+    assert.equal(look.items[0].category, "Shirt");
+    assert.ok(["trousers", "grey-pants"].includes(look.items[1].id));
+    assert.equal(look.items[2].id, "dress-shoes");
+  }
+});
+test("T-shirts work for casual and tagged semi-formal looks, never formal", () => {
+  for (const style of ["Casual", "Semi-formal"]) {
+    const looks = recommend(mixed, [], "Everyday", "tee", [], style);
+    assert.ok(looks.length);
+    assert.ok(looks.every((o) => o.items[0].id === "tee"));
+  }
+  assert.deepEqual(recommend(mixed, [], "Everyday", "tee", [], "Formal"), []);
+});
+test("pants anchor produces different compatible tops and stays in every outfit", () => {
+  const looks = recommend(mixed, [], "Office", "trousers", [], "Semi-formal");
+  assert.ok(new Set(looks.map((o) => o.items[0].id)).size >= 3);
+  assert.ok(looks.every((o) => o.items[1].id === "trousers"));
+});
+test("selected shirt stays fixed while different pants are suggested", () => {
+  const looks = recommend(mixed, [], "Office", "formal-shirt", [], "Formal");
+  assert.ok(new Set(looks.map((o) => o.items[1].id)).size >= 2);
+  assert.ok(looks.every((o) => o.items[0].id === "formal-shirt"));
+});
+test("occasion restrictions apply to anchors as well as other items", () => {
+  const pieces = mixed.map((i) =>
+    i.id === "tee" ? { ...i, occasions: ["Party"] } : i,
+  );
+  assert.deepEqual(recommend(pieces, [], "Office", "tee", [], "Casual"), []);
+  assert.ok(recommend(pieces, [], "Party", "tee", [], "Casual").length);
+});
+test("top and pants suggestions do not require shoes", () => {
+  const looks = recommend(
+    mixed.filter((i) => i.category !== "Shoes"),
+    [],
+    "Office",
+    "",
+    [],
+    "Formal",
+  );
+  assert.ok(looks.length);
+  assert.ok(looks.every((o) => o.items.length === 2));
+});
+test("traditional looks use traditional tops and explicitly suitable bottoms", () => {
+  const looks = recommend(mixed, [], "Party", "", [], "Traditional");
+  assert.equal(looks.length, 1);
+  assert.deepEqual(
+    looks[0].items.map((i) => i.id),
+    ["kurta", "traditional-bottoms"],
+  );
+});
+test("old items default to casual and cannot accidentally enter formal suggestions", () => {
+  assert.ok(recommend(closet, [], "Everyday", "", [], "Casual").length);
+  assert.deepEqual(recommend(closet, [], "Everyday", "", [], "Formal"), []);
+});
+test("clothing alternatives appear before many shoe variants", () => {
+  const shoes = Array.from({ length: 20 }, (_, n) =>
+    styled(`shoe-${n}`, "Shoes", "Brown", ["Formal"]),
+  );
+  const looks = recommend(
+    [...mixed, ...shoes],
+    [],
+    "Office",
+    "formal-shirt",
+    [],
+    "Formal",
+  );
+  assert.notEqual(looks[0].items[1].id, looks[1].items[1].id);
+  assert.ok(looks.length <= 30);
+});

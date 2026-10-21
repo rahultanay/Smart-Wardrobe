@@ -1566,3 +1566,343 @@ legend {
 .archive-link + .archive-link {
   margin-left: 12px;
 }
+/* Outfit maker: dress code, occasion, starting pieces, and multiple combinations. */
+.maker-context {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 26px;
+  margin-bottom: 22px;
+}
+.maker-context h2 {
+  font-family: Georgia, serif;
+  font-size: 27px;
+  margin-top: 8px;
+}
+.style-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+.style-options > button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 17px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+  min-height: 132px;
+}
+.style-options > button.selected {
+  border-color: #617e4f;
+  background: #edf3e5;
+  box-shadow: 0 0 0 1px #617e4f;
+}
+.style-options > button > span {
+  font-size: 10px;
+  color: #a0ad93;
+  margin-bottom: 13px;
+}
+.style-options strong {
+  font-size: 14px;
+  font-weight: 550;
+  margin-bottom: 8px;
+}
+.style-options small {
+  color: #87927e;
+  font-size: 10px;
+  line-height: 1.7;
+}
+.style-options svg {
+  position: absolute;
+  right: 12px;
+  top: 13px;
+  color: var(--green);
+}
+.maker-occasion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 24px;
+  padding-top: 23px;
+  border-top: 1px solid var(--line);
+}
+.maker-occasion > span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.maker-occasion strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.maker-occasion select {
+  min-width: 190px;
+  border: 1px solid #d3ddca;
+  border-radius: 6px;
+  padding: 11px 14px;
+  font-size: 13px;
+  background: #f7faf3;
+  color: var(--green);
+}
+.maker-anchor {
+  background: #eff3e8;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 18px;
+}
+.maker-anchor img {
+  width: 37px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #fff;
+}
+.maker-alert {
+  border: 1px solid #ead7b0;
+  border-radius: 8px;
+  background: #fff6e5;
+  padding: 17px 20px;
+  margin-bottom: 17px;
+  font-size: 12px;
+  color: #8c7549;
+}
+.maker-alert p {
+  font-size: 11px;
+  margin: 7px 0;
+}
+.piece-change {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 9px;
+  border: 0;
+  background: none;
+  padding: 10px 0 0;
+  color: #617f51;
+}
+.missing-shoes {
+  background: #ffffff60;
+  border: 1px dashed #cbd6bf;
+  border-radius: 8px;
+  padding: 25px 12px;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.missing-shoes h3 {
+  margin: 15px 0 10px;
+}
+.missing-shoes p {
+  line-height: 1.8;
+}
+.maker-picker {
+  scroll-margin-top: 25px;
+}
+.maker-tabs {
+  margin-bottom: 17px;
+}
+.maker-tabs button span {
+  margin-left: 5px;
+  color: #8c9a80;
+}
+.combination-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+}
+.combination-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.combination-card.selected {
+  border-color: #708a5c;
+  background: #f3f6ee;
+  box-shadow: 0 0 0 1px #708a5c;
+}
+.combination-photos {
+  display: flex;
+  gap: 7px;
+  background: #f0f2e9;
+  padding: 10px;
+  border-radius: 6px;
+}
+.combination-photos img {
+  width: 0;
+  flex: 1;
+  min-width: 0;
+  height: 100px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.combination-card > strong {
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+.combination-card > span {
+  font-size: 10px;
+  color: #7a8970;
+  line-height: 1.7;
+}
+.combination-card > small {
+  font-size: 9px;
+  color: #9ca58e;
+}
+.more-looks {
+  display: flex;
+  margin: 20px auto 0;
+}
+.maker-tag-help {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+}
+.maker-tag-help summary {
+  cursor: pointer;
+  color: #6d805e;
+  font-size: 12px;
+}
+.maker-tag-help > p {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #89937e;
+  margin-top: 12px;
+}
+.maker-tag-help > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 12px;
+}
+.maker-tag-help button {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8faf4;
+  padding: 9px 12px;
+  font-size: 10px;
+}
+.maker-tag-help small {
+  color: #95a189;
+}
+.item-style-tags {
+  font-size: 9px;
+  color: #72905c;
+  margin-bottom: 7px;
+}
+.wear-style {
+  font-size: 13px;
+  color: #617f51;
+}
+.outfit-panel {
+  scroll-margin-top: 25px;
+}
+@media (max-width: 1150px) {
+  .style-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .style-options > button {
+    min-height: 117px;
+  }
+  .combination-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .maker-context {
+    padding: 20px 16px;
+  }
+  .maker-context h2 {
+    font-size: 25px;
+  }
+  .style-options {
+    gap: 9px;
+    margin-top: 20px;
+  }
+  .style-options > button {
+    padding: 14px 12px;
+    min-height: 139px;
+  }
+  .style-options strong {
+    font-size: 13px;
+  }
+  .style-options small {
+    font-size: 10px;
+  }
+  .maker-occasion {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .maker-occasion select {
+    width: 100%;
+    min-width: 0;
+  }
+  .maker-anchor {
+    gap: 9px;
+    font-size: 11px;
+  }
+  .maker-anchor > span {
+    flex: 1;
+  }
+  .maker-anchor button {
+    margin-left: 45px;
+  }
+  .combination-grid {
+    gap: 10px;
+  }
+  .combination-card {
+    padding: 10px;
+  }
+  .combination-photos {
+    gap: 3px;
+    padding: 7px;
+  }
+  .combination-photos img {
+    height: 80px;
+  }
+  .combination-card > strong {
+    font-size: 11px;
+  }
+  .combination-card > span {
+    font-size: 9px;
+  }
+  .piece-change {
+    font-size: 8px;
+  }
+  .missing-shoes {
+    padding: 16px 8px;
+  }
+  .missing-shoes p {
+    font-size: 8px;
+  }
+  .maker-tag-help button {
+    flex-wrap: wrap;
+    text-align: left;
+  }
+  .outfit-maker .section-heading {
+    align-items: flex-start;
+  }
+  .outfit-maker .section-heading h2 {
+    font-size: 23px;
+  }
+}

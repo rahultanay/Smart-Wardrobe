@@ -19,6 +19,7 @@ export default function WearForm({ outfit, occasion, onClose, onSave }) {
       await onSave({
         itemIds: outfit.items.map((i) => i.id),
         occasion: where,
+        dressStyle: outfit.dressStyle,
         wornAt: new Date(time).toISOString(),
       });
       onClose();
@@ -36,6 +37,7 @@ export default function WearForm({ outfit, occasion, onClose, onSave }) {
           ))}
         </div>
         <p>{outfit.items.map((i) => i.name).join(" + ")}</p>
+        <p className="wear-style">{outfit.dressStyle} outfit</p>
         <label>
           Occasion
           <select value={where} onChange={(e) => setWhere(e.target.value)}>

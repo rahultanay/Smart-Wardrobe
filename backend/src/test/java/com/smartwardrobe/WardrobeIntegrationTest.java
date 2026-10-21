@@ -50,7 +50,7 @@ class WardrobeIntegrationTest {
         bad=input("Bad","Hat");mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(bad))).andExpect(status().isBadRequest());
         var ids=outfit(); var future=new LinkedHashMap<>(wear(ids,"College",0));future.put("wornAt",Instant.now().plusSeconds(3600).toString());
         mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(future))).andExpect(status().isBadRequest());
-        mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(wear(ids.subList(0,2),"College",0)))).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(wear(ids.subList(0,1),"College",0)))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(wear(List.of(ids.get(0),ids.get(0),ids.get(2)),"College",0)))).andExpect(status().isBadRequest());
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM wear_event",Integer.class));
     }
@@ -84,4 +84,57 @@ class WardrobeIntegrationTest {
         mvc.perform(patch("/api/items/missing/laundry").contentType("application/json").content("{\"value\":true}")).andExpect(status().isNotFound());
         mvc.perform(patch("/api/items/missing/laundry").contentType("application/json").content("{}")).andExpect(status().isBadRequest());
     }
+    @Test void tShirtOutfitsPersistStyleAndRejectFormalMisclassification() throws Exception {
+        String tee=create("Blue T-shirt","T-shirt").get("id").asText();
+        String pants=create("Casual pants","Pants").get("id").asText();
+        var body=new LinkedHashMap<>(wear(List.of(tee,pants),"Outing",0));
+        body.put("dressStyle","Casual");
+        mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isCreated()).andExpect(jsonPath("$.dressStyle").value("Casual")).andExpect(jsonPath("$.items.length()").value(2));
+        body.put("dressStyle","Formal");
+        mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isBadRequest());
+        var bad=input("Incorrect formal tee","T-shirt");bad.put("styles",List.of("Formal"));
+        mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(bad))).andExpect(status().isBadRequest());
+    }
+    @Test void formalDressTagsPersistAndRoundTripInBackups() throws Exception {
+        var ids=new ArrayList<String>();
+        for(String category:List.of("Shirt","Pants","Shoes")) {
+            var data=input("Formal "+category,category);data.put("styles",List.of("Formal","Semi-formal"));
+            var response=mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(data))).andExpect(status().isCreated()).andExpect(jsonPath("$.styles[0]").value("Formal")).andReturn();
+            ids.add(json.readTree(response.getResponse().getContentAsString()).get("id").asText());
+        }
+        var body=new LinkedHashMap<>(wear(ids,"Office",0));body.put("dressStyle","Formal");
+        mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isCreated());
+        String backup=mvc.perform(get("/api/backup")).andExpect(jsonPath("$.version").value(2)).andReturn().getResponse().getContentAsString();
+        db.update("DELETE FROM wear_item");db.update("DELETE FROM wear_event");db.update("DELETE FROM wardrobe_item");
+        mvc.perform(post("/api/restore").contentType("application/json").content(backup)).andExpect(status().isOk()).andExpect(jsonPath("$.itemsAdded").value(3));
+        mvc.perform(get("/api/history")).andExpect(jsonPath("$[0].dressStyle").value("Formal"));
+        assertEquals("Formal,Semi-formal",db.queryForObject("SELECT styles FROM wardrobe_item WHERE id=?",String.class,ids.get(0)));
+    }
+    @Test void phaseOneBackupRemainsRestorable() throws Exception {
+        var ids=outfit();mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(wear(ids,"College",1)))).andExpect(status().isCreated());
+        var backup=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(mvc.perform(get("/api/backup")).andReturn().getResponse().getContentAsString());
+        backup.put("version",1);
+        for(var item:backup.get("items"))((com.fasterxml.jackson.databind.node.ObjectNode)item).remove("styles");
+        for(var event:backup.get("history"))((com.fasterxml.jackson.databind.node.ObjectNode)event).remove("dressStyle");
+        db.update("DELETE FROM wear_item");db.update("DELETE FROM wear_event");db.update("DELETE FROM wardrobe_item");
+        mvc.perform(post("/api/restore").contentType("application/json").content(backup.toString())).andExpect(status().isOk());
+        mvc.perform(get("/api/items")).andExpect(jsonPath("$[0].styles[0]").value("Casual"));
+        mvc.perform(get("/api/history")).andExpect(jsonPath("$[0].dressStyle").value("Casual"));
+    }
+    @Test void phaseOneDatabaseMigrationPreservesRowsAndRunsTwice() {
+        var source=new org.springframework.jdbc.datasource.DriverManagerDataSource("jdbc:h2:mem:legacy"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(new org.springframework.core.io.ClassPathResource("schema-v1.sql")).execute(source);
+        var legacy=new JdbcTemplate(source);
+        legacy.update("INSERT INTO wardrobe_item VALUES (?,?,?,?,?,?,?,?,?,?)","legacy","Keep this shirt","Shirt","Blue","Solid","Everyday",photo,true,false,Instant.now().toString());
+        legacy.update("INSERT INTO wear_event VALUES (?,?,?)","event",Instant.now().toString(),"College");
+        legacy.update("INSERT INTO wear_item VALUES (?,?,?,?)","event","legacy","Keep this shirt","Shirt");
+        new WardrobeMigration(legacy).afterPropertiesSet();new WardrobeMigration(legacy).afterPropertiesSet();
+        assertEquals("Casual",legacy.queryForObject("SELECT styles FROM wardrobe_item WHERE id='legacy'",String.class));
+        assertEquals(true,legacy.queryForObject("SELECT laundry FROM wardrobe_item WHERE id='legacy'",Boolean.class));
+        assertEquals("Casual",legacy.queryForObject("SELECT dress_style FROM wear_event",String.class));
+        assertEquals(1,legacy.queryForObject("SELECT COUNT(*) FROM wear_item",Integer.class));
+        legacy.update("UPDATE wardrobe_item SET category='T-shirt' WHERE id='legacy'");
+        legacy.execute("SHUTDOWN");
+    }
+
 }

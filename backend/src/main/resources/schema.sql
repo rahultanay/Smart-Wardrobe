@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS wardrobe_item (
  id VARCHAR(36) PRIMARY KEY,
  name VARCHAR(80) NOT NULL,
- category VARCHAR(12) NOT NULL CHECK (category IN ('Shirt','Pants','Shoes')),
+ category VARCHAR(12) NOT NULL CHECK (category IN ('Shirt','T-shirt','Hoodie','Traditional','Pants','Shoes')),
  color VARCHAR(20) NOT NULL,
  pattern VARCHAR(20) NOT NULL,
  occasions VARCHAR(250) NOT NULL,

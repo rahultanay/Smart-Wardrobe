@@ -2,9 +2,10 @@ import { useState } from "react";
 import {
   CATEGORIES,
   COLORS,
-  PATTERNS,
   OCCASIONS,
   photoData,
+  stylesForCategory,
+  itemStyles,
 } from "../lib/wardrobe.js";
 import Modal from "./Modal.jsx";
 import Icon from "./Icon.jsx";
@@ -15,8 +16,14 @@ const emptyItem = {
   pattern: "Solid",
   occasions: ["Everyday"],
   photo: "",
+  styles: ["Casual"],
 };
-export default function ItemForm({ item, onClose, onSave }) {
+export default function ItemForm({
+  item,
+  initialStyle = "Casual",
+  onClose,
+  onSave,
+}) {
   const [form, setForm] = useState(
     item
       ? {
@@ -26,8 +33,13 @@ export default function ItemForm({ item, onClose, onSave }) {
           pattern: item.pattern,
           occasions: item.occasions,
           photo: item.photo,
+          styles: itemStyles(item),
         }
-      : emptyItem,
+      : {
+          ...emptyItem,
+          category: initialStyle === "Traditional" ? "Traditional" : "Shirt",
+          styles: [initialStyle],
+        },
   );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -53,7 +65,14 @@ export default function ItemForm({ item, onClose, onSave }) {
     setBusy(true);
     setError("");
     try {
-      await onSave(form, item?.id);
+      await onSave(
+        {
+          ...form,
+          name:
+            form.name.trim() || `${form.color} ${form.category.toLowerCase()}`,
+        },
+        item?.id,
+      );
       onClose();
     } catch (e) {
       setError(e.message);
@@ -89,12 +108,11 @@ export default function ItemForm({ item, onClose, onSave }) {
         </label>
         {photoNote && <p className="hint">{photoNote}</p>}
         <label>
-          Item name
+          Label (optional)
           <input
             autoFocus
-            required
             maxLength={80}
-            placeholder="e.g. Blue linen shirt"
+            placeholder={`Auto: ${form.color} ${form.category.toLowerCase()}`}
             value={form.name}
             onChange={(e) => change("name", e.target.value)}
           />
@@ -104,7 +122,18 @@ export default function ItemForm({ item, onClose, onSave }) {
             Category
             <select
               value={form.category}
-              onChange={(e) => change("category", e.target.value)}
+              onChange={(e) => {
+                const category = e.target.value;
+                const options = stylesForCategory(category);
+                const styles = form.styles.filter((s) => options.includes(s));
+                setForm((f) => ({
+                  ...f,
+                  category,
+                  styles: styles.length
+                    ? styles
+                    : [options.includes("Casual") ? "Casual" : options[0]],
+                }));
+              }}
             >
               {CATEGORIES.map((x) => (
                 <option key={x}>{x}</option>
@@ -123,17 +152,33 @@ export default function ItemForm({ item, onClose, onSave }) {
             </select>
           </label>
         </div>
-        <label>
-          Pattern
-          <select
-            value={form.pattern}
-            onChange={(e) => change("pattern", e.target.value)}
-          >
-            {PATTERNS.map((x) => (
-              <option key={x}>{x}</option>
+        <fieldset>
+          <legend>Dress styles</legend>
+          <div className="check-options">
+            {stylesForCategory(form.category).map((style) => (
+              <label key={style}>
+                <input
+                  type="checkbox"
+                  checked={form.styles.includes(style)}
+                  onChange={(e) =>
+                    change(
+                      "styles",
+                      e.target.checked
+                        ? [...form.styles, style]
+                        : form.styles.filter((s) => s !== style),
+                    )
+                  }
+                />
+                {style}
+              </label>
             ))}
-          </select>
-        </label>
+          </div>
+          <p className="hint">
+            Choose where this piece fits: formal dress shoes, smart trousers,
+            casual jeans, or a relaxed T-shirt. These tags guide outfit
+            matching.
+          </p>
+        </fieldset>
         <fieldset>
           <legend>Wear it for</legend>
           <div className="check-options">
@@ -166,7 +211,9 @@ export default function ItemForm({ item, onClose, onSave }) {
         )}
         <button
           className="button primary full"
-          disabled={busy || !form.photo || !form.occasions.length}
+          disabled={
+            busy || !form.photo || !form.occasions.length || !form.styles.length
+          }
         >
           {busy ? "Saving…" : item ? "Save changes" : "Add item"}
           <Icon name="check" />

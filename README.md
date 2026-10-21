@@ -12,12 +12,26 @@ For a fresh checkout, install Node.js 22.12 or later and a Java JDK (21 recommen
 
 Port 8080 must be free. If another application uses it, stop that application before launching this one. Only run one copy against the database at a time.
 
+## Outfit maker update
+
+The app opens directly in **Outfit maker**. Select a dress style—Formal, Semi-formal, Casual, or Traditional—and choose where you are going. Available wardrobe pieces are matched using both selections.
+
+Choose a shirt or T-shirt under **Shirts & tops** to keep it in every suggested look, or choose **Pants** to generate suitable tops around those pants. **Shoes** can also be the starting piece. Multiple combinations appear below; selecting one previews it above, where **Wear this** records its date, occasion, and dress style. Shoes are included when suitable ones exist; top-and-pants outfits are still available without them.
+
+Supported top types are Shirt, T-shirt, Hoodie, and Traditional. Traditional means a top such as a kurta; this version still pairs it with an item stored under Pants. One-piece traditional garments and layered outfits are outside this iteration.
+
+Use **Dress styles** in the item editor to describe suitability. Formal permits tagged shirts, pants, and shoes. Semi-formal additionally permits suitably tagged T-shirts. Hoodies are casual-only, and Traditional tops are used for traditional looks. These are wardrobe rules, not automatic recognition of garment formality. Tag jeans as Casual and dress trousers or shoes as Formal/Semi-formal as appropriate.
+
+Existing phase-one clothes are preserved and start with a Casual tag. Edit those tags to make suitable pieces eligible for other dress styles. A selected item must also fit the occasion; the app explains conflicts rather than silently substituting it. Backup format 2 includes dress styles; phase-one format 1 backups remain restorable. Database migration adds fields and expands the category constraint without removing records.
+
+Clothing labels are optional and default to the color and category. Pattern is no longer a required UI field; existing pattern data remains stored. Group-photo separation remains deferred.
+
 ## Use your wardrobe
 
 1. Select **Add item** and choose a JPEG, PNG, or WebP photo. Browser uploads accept images up to 15 MB and resize them to a maximum of 1000 pixels before saving.
-2. Give the item a name. Confirm its category, main color, pattern, and occasions. The app estimates the main color from the photo center; edit it when lighting or background affects the estimate.
-3. Add at least one shirt, one pair of pants, and one pair of shoes.
-4. Open **Outfit studio**, select your occasion, and choose a favorite item under **Start with a favorite**. Alternatively, select **Style this** on any available wardrobe item.
+2. Optionally give the item a label. Confirm its category, main color, dress styles, and occasions. The app estimates the main color from the photo center; edit it when lighting or background affects the estimate.
+3. Add at least one top and one pair of pants. Add shoes when available.
+4. Open **Outfit maker**, select your occasion, and choose a favorite item under **Start with a favorite**. Alternatively, select **Style this** on any available wardrobe item.
 5. Review matching combinations and use **Try another** for alternatives. **Wear this** records the outfit, occasion, and wear date/time. Past dates are supported; future dates are rejected.
 6. Mark individual pieces for laundry from their cards or wear journal entries. Use **Back to wardrobe** when they are ready again.
 7. Check the last-worn label or **Wear details** for an item's dated, occasion-specific history. Washing, renaming, and archiving never erase recorded wears.
@@ -26,9 +40,9 @@ Shoes have independent availability controls; the application does not assume th
 
 ## Matching behavior
 
-Suggestions use only your available, unarchived clothes. Each combination contains one shirt, one pair of pants, and one pair of shoes. Rules consider color compatibility, patterns, occasion tags, recent wears, and optional preferred colors. An explanation accompanies each suggestion.
+Suggestions use only your available, unarchived clothes. Each combination contains one top and one pair of pants, plus suitable shoes when available. Rules consider color compatibility, patterns, occasion tags, recent wears, and optional preferred colors. An explanation accompanies each suggestion.
 
-An **Everyday** tag makes an item eligible across occasions. An explicitly selected starting item stays in the outfit even if its occasion tags differ. Other pieces must suit the selected occasion or have the Everyday tag.
+An **Everyday** tag makes an item eligible across occasions. Every piece, including a selected starting item, must fit the dress style and suit the occasion or have the Everyday tag.
 
 The app ranks up to 20 candidates in each category and shows the best 30 combinations. It prioritizes variety without preventing you from repeating a favorite. If a category is missing, all suitable items are in laundry, or no full outfit meets the occasion, it explains the missing combination rather than inventing clothing.
 
@@ -47,7 +61,7 @@ Name and favorite-color preferences are saved in the current browser and are not
 ## Project layout
 
 - `src/App.jsx` — application views and wardrobe interactions.
-- `src/components/` — reusable icons, dialogs, item editor, and wear recorder.
+- `src/components/` — outfit maker, reusable icons, dialogs, item editor, and wear recorder.
 - `src/lib/wardrobe.js` — matching, last-worn calculations, image processing, and API client.
 - `src/App.css` — responsive desktop and mobile styling.
 - `backend/src/main/java/com/smartwardrobe/` — Spring Boot application, API, JDBC store, validation, and local-access filter.
