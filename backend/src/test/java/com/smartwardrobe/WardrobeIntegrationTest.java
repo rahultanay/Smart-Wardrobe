@@ -25,7 +25,7 @@ class WardrobeIntegrationTest {
     @Autowired JdbcTemplate db;
     String photo;
     @BeforeEach void reset() throws Exception {
-        db.update("DELETE FROM wear_item"); db.update("DELETE FROM wear_event"); db.update("DELETE FROM laundry_event"); db.update("DELETE FROM wardrobe_item");
+        db.update("DELETE FROM bulk_import"); db.update("DELETE FROM wear_item"); db.update("DELETE FROM wear_event"); db.update("DELETE FROM laundry_event"); db.update("DELETE FROM wardrobe_item");
         var bytes=new ByteArrayOutputStream(); ImageIO.write(new BufferedImage(10,10,BufferedImage.TYPE_INT_RGB),"png",bytes); photo="data:image/png;base64,"+Base64.getEncoder().encodeToString(bytes.toByteArray());
     }
     Map<String,Object> input(String name,String cat) { return new LinkedHashMap<>(Map.of("name",name,"category",cat,"color","Blue","pattern","Solid","occasions",List.of("Everyday"),"photo",photo)); }
@@ -137,4 +137,34 @@ class WardrobeIntegrationTest {
         legacy.execute("SHUTDOWN");
     }
 
+
+    @Test void bulkImportPersistsIndependentItemsAndRetryDoesNotDuplicate() throws Exception {
+        var request=new LinkedHashMap<String,Object>(); request.put("requestId",UUID.randomUUID().toString());
+        request.put("items",List.of(input("Blue jeans","Pants"),input("Black jeans","Pants")));
+        String body=json.writeValueAsString(request);
+        String first=mvc.perform(post("/api/items/bulk").contentType("application/json").content(body)).andExpect(status().isCreated()).andExpect(jsonPath("$.length()").value(2)).andReturn().getResponse().getContentAsString();
+        String retry=mvc.perform(post("/api/items/bulk").contentType("application/json").content(body)).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        assertEquals(json.readTree(first),json.readTree(retry));
+        assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM wardrobe_item",Integer.class));
+        request.put("items",List.of(input("Different selection","Shirt")));
+        mvc.perform(post("/api/items/bulk").contentType("application/json").content(json.writeValueAsString(request))).andExpect(status().isBadRequest());
+        assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM wardrobe_item",Integer.class));
+    }
+    @Test void bulkImportRejectsInvalidOrOversizedBatchesWithoutSavingAnything() throws Exception {
+        var bad=input("Bad","Pants");bad.put("photo","invalid");
+        for(var rows:List.of(List.of(input("Good","Pants"),bad),Collections.nCopies(25,input("Too many","Shirt")),List.of())) {
+            mvc.perform(post("/api/items/bulk").contentType("application/json").content(json.writeValueAsString(Map.of("requestId",UUID.randomUUID().toString(),"items",rows)))).andExpect(status().isBadRequest());
+        }
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM wardrobe_item",Integer.class));
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM bulk_import",Integer.class));
+    }
+    @Test void bulkDatabaseFailureRollsBackItemsAndRequestReservation() throws Exception {
+        db.execute("ALTER TABLE wardrobe_item ADD CONSTRAINT test_bulk_failure CHECK (name <> 'Reject this')");
+        try {
+            var body=Map.of("requestId",UUID.randomUUID().toString(),"items",List.of(input("First item","Shirt"),input("Reject this","Shirt")));
+            assertThrows(jakarta.servlet.ServletException.class, () -> mvc.perform(post("/api/items/bulk").contentType("application/json").content(json.writeValueAsString(body))));
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM wardrobe_item",Integer.class));
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM bulk_import",Integer.class));
+        } finally {db.execute("ALTER TABLE wardrobe_item DROP CONSTRAINT test_bulk_failure");}
+    }
 }

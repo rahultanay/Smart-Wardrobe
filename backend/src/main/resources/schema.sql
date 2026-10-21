@@ -28,3 +28,9 @@ CREATE TABLE IF NOT EXISTS laundry_event (
  changed_at VARCHAR(40) NOT NULL,
  in_laundry BOOLEAN NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS bulk_import (
+ request_id VARCHAR(36) PRIMARY KEY,
+ fingerprint VARCHAR(64) NOT NULL,
+ item_ids VARCHAR(1000) NOT NULL
+);

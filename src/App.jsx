@@ -12,6 +12,7 @@ import Icon from "./components/Icon.jsx";
 import ItemForm from "./components/ItemForm.jsx";
 import WearForm from "./components/WearForm.jsx";
 import Modal from "./components/Modal.jsx";
+import BulkImport from "./components/BulkImport.jsx";
 import OutfitMaker from "./components/OutfitMaker.jsx";
 function App() {
   const [items, setItems] = useState([]),
@@ -117,6 +118,18 @@ function App() {
         ? "Item updated. Wear history preserved."
         : "A new addition to your wardrobe.",
     );
+  }
+  async function saveBulk(batch) {
+    const saved = await api("/items/bulk", "POST", batch);
+    setItems((all) => [
+      ...saved,
+      ...all.filter((item) => !saved.some((s) => s.id === item.id)),
+    ]);
+    setView("wardrobe");
+    setCategory("All");
+    setSearch("");
+    setShowArchive(false);
+    setNotice(`${saved.length} pieces added to your wardrobe.`);
   }
   async function saveWear(data) {
     const saved = await api("/history", "POST", data);
@@ -447,13 +460,22 @@ function App() {
               <p>{subtitles[view]}</p>
             </div>
             {view !== "settings" && (
-              <button
-                className="button primary"
-                disabled={!connected}
-                onClick={() => setModal({ type: "item" })}
-              >
-                <Icon name="plus" size={18} /> Add item
-              </button>
+              <div className="heading-actions">
+                <button
+                  className="button outline"
+                  disabled={!connected}
+                  onClick={() => setModal({ type: "bulk" })}
+                >
+                  Import group photo
+                </button>
+                <button
+                  className="button primary"
+                  disabled={!connected}
+                  onClick={() => setModal({ type: "item" })}
+                >
+                  <Icon name="plus" size={18} /> Add item
+                </button>
+              </div>
             )}
           </div>
           {error && (
@@ -863,6 +885,9 @@ function App() {
             )}
           </div>
         </Modal>
+      )}
+      {modal?.type === "bulk" && (
+        <BulkImport onClose={() => setModal(null)} onSave={saveBulk} />
       )}
       {modal?.type === "item" && (
         <ItemForm

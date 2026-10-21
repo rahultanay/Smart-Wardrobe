@@ -243,7 +243,7 @@ export async function api(path, method = "GET", body) {
     );
   return data;
 }
-export async function photoData(file) {
+export async function photoData(file, { maxSide = 1000 } = {}) {
   if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type))
     throw new Error("Choose a JPEG, PNG, or WebP image.");
   if (file.size > 15 * 1024 * 1024)
@@ -252,7 +252,7 @@ export async function photoData(file) {
     throw new Error("This photo could not be read. Try a different image.");
   });
   const canvas = document.createElement("canvas");
-  const scale = Math.min(1, 1000 / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   canvas.width = Math.max(1, Math.round(bitmap.width * scale));
   canvas.height = Math.max(1, Math.round(bitmap.height * scale));
   const ctx = canvas.getContext("2d");

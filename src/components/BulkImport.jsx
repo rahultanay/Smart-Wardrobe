@@ -1,0 +1,486 @@
+import { useEffect, useRef, useState } from "react";
+import Modal from "./Modal.jsx";
+import { COLORS, photoData, stylesForCategory } from "../lib/wardrobe.js";
+import { MAX_PIECES, boxFromPoints, clampBox } from "../lib/bulk-regions.js";
+import { loadPhoto, cropPhoto } from "../lib/bulk-photo.js";
+const groups = [
+  ["Jeans / pants", "Pants"],
+  ["Shirts", "Shirt"],
+  ["T-shirts", "T-shirt"],
+  ["Hoodies", "Hoodie"],
+  ["Traditional wear", "Traditional"],
+  ["Shoes", "Shoes"],
+];
+export default function BulkImport({ onClose, onSave }) {
+  const [category, setCategory] = useState("Pants"),
+    [styles, setStyles] = useState(["Casual"]);
+  const [photo, setPhoto] = useState(""),
+    [pieces, setPieces] = useState([]),
+    [selected, setSelected] = useState(null);
+  const [busy, setBusy] = useState(false),
+    [saving, setSaving] = useState(false),
+    [status, setStatus] = useState(""),
+    [error, setError] = useState("");
+  const [draw, setDraw] = useState(false),
+    [draft, setDraft] = useState(null),
+    [locked, setLocked] = useState(false);
+  const worker = useRef(),
+    source = useRef(),
+    start = useRef(),
+    request = useRef(),
+    operation = useRef(0),
+    alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      worker.current?.terminate();
+    };
+  }, []);
+  function stop() {
+    operation.current++;
+    worker.current?.terminate();
+    worker.current = null;
+    setBusy(false);
+    setStatus("Automatic selection stopped. You can draw your own boxes.");
+  }
+  function analyze(value) {
+    worker.current?.terminate();
+    setBusy(true);
+    setError("");
+    setStatus("Starting automatic selection…");
+    const w = new Worker(
+      new URL("../workers/clothing.worker.js", import.meta.url),
+      { type: "module" },
+    );
+    worker.current = w;
+    w.onmessage = ({ data }) => {
+      if (worker.current !== w || !alive.current) return;
+      if (data.type === "progress") setStatus(data.message);
+      if (data.type === "error") {
+        setError(data.message);
+        setBusy(false);
+        w.terminate();
+        worker.current = null;
+      }
+      if (data.type === "result") {
+        const next = data.regions.map((r) => ({
+          ...r,
+          ...cropPhoto(source.current, r),
+          id: crypto.randomUUID(),
+          included: true,
+          name: "",
+        }));
+        setPieces(next);
+        setSelected(next[0]?.id || null);
+        setBusy(false);
+        setStatus(
+          next.length
+            ? `${next.length} possible pieces found. Check every crop before adding.`
+            : "No separate pieces found. Draw a box around each piece below.",
+        );
+        w.terminate();
+        worker.current = null;
+      }
+    };
+    w.onerror = () => {
+      setError(
+        "Automatic selection is unavailable in this browser. You can draw boxes around the clothes instead.",
+      );
+      setBusy(false);
+      w.terminate();
+      worker.current = null;
+    };
+    w.postMessage({ photo: value, category });
+  }
+  async function upload(file) {
+    const job = ++operation.current;
+    setBusy(true);
+    setError("");
+    setPieces([]);
+    setSelected(null);
+    setPhoto("");
+    try {
+      const result = await photoData(file, { maxSide: 2000 });
+      const image = await loadPhoto(result.photo);
+      if (!alive.current || job !== operation.current) return;
+      source.current = image;
+      setPhoto(result.photo);
+      analyze(result.photo);
+    } catch (e) {
+      if (alive.current && job === operation.current) {
+        setError(e.message);
+        setBusy(false);
+      }
+    }
+  }
+  function update(id, patch) {
+    setPieces((all) => all.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }
+  function resize(piece, box) {
+    const region = { ...piece, box: clampBox(box), mask: null };
+    update(piece.id, { ...region, ...cropPhoto(source.current, region) });
+  }
+  function point(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+      y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)),
+    };
+  }
+  function addBox(box) {
+    if (pieces.length >= MAX_PIECES) return;
+    const region = {
+      box: clampBox(box),
+      id: crypto.randomUUID(),
+      included: true,
+      name: "",
+    };
+    setPieces((all) => [
+      ...all,
+      { ...region, ...cropPhoto(source.current, region) },
+    ]);
+    setSelected(region.id);
+    setDraw(false);
+  }
+  async function save() {
+    setSaving(true);
+    setLocked(true);
+    setError("");
+    if (!request.current)
+      request.current = {
+        requestId: crypto.randomUUID(),
+        items: pieces
+          .filter((p) => p.included)
+          .map((p) => ({
+            name: p.name.trim() || `${p.color} ${category.toLowerCase()}`,
+            category,
+            color: p.color,
+            pattern: "Solid",
+            styles,
+            occasions: ["Everyday"],
+            photo: p.photo,
+          })),
+      };
+    try {
+      await onSave(request.current);
+      onClose();
+    } catch (e) {
+      setError(
+        `${e.message} Your reviewed selection is kept. Retry saving the same batch safely.`,
+      );
+      setSaving(false);
+    }
+  }
+  const current = pieces.find((p) => p.id === selected),
+    count = pieces.filter((p) => p.included).length;
+  return (
+    <Modal title="Import a group photo" onClose={() => !saving && onClose()}>
+      <div className="bulk-import">
+        <p>
+          One photo, several pieces. Choose what you’re importing, then review
+          the individual crops.
+        </p>
+        <fieldset disabled={busy || saving || locked}>
+          <legend>What’s in this photo?</legend>
+          <div className="bulk-categories">
+            {groups.map(([label, value]) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={category === value}
+                className={category === value ? "selected" : ""}
+                onClick={() => {
+                  setCategory(value);
+                  setStyles([
+                    value === "Traditional" ? "Traditional" : "Casual",
+                  ]);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="hint">
+            Use one clothing category per photo (up to 24 pieces). Leave space
+            between pieces on a plain background for better results.
+          </p>
+        </fieldset>
+        {!photo && (
+          <label className="upload-zone">
+            <strong>Choose a photo of your clothes</strong>
+            <span>JPEG, PNG or WebP · up to 15 MB</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-label="Choose bulk clothing photo"
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.files[0]) upload(e.target.files[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        )}
+        <p className="hint">
+          Automatic selection runs on your device. First use downloads the image
+          model (about 204 MB plus its runtime); photos are not sent to an AI
+          service. Clothes that touch or overlap may need separate boxes.
+        </p>
+        {status && (
+          <p className="bulk-status" role="status">
+            {status}
+          </p>
+        )}
+        {busy && (
+          <button className="button outline" onClick={stop}>
+            Stop automatic selection
+          </button>
+        )}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        {photo && (
+          <>
+            <div className="bulk-toolbar">
+              <button
+                type="button"
+                className="button outline"
+                disabled={busy || locked || pieces.length >= MAX_PIECES}
+                onClick={() => {
+                  setDraw(!draw);
+                  setDraft(null);
+                }}
+                aria-pressed={draw}
+              >
+                {draw ? "Cancel drawing" : "Draw a missing piece"}
+              </button>
+              <button
+                type="button"
+                className="button outline"
+                disabled={busy || locked || pieces.length >= MAX_PIECES}
+                onClick={() => addBox({ x: 0.25, y: 0.25, w: 0.3, h: 0.4 })}
+              >
+                Add adjustable box
+              </button>
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy || locked}
+                onClick={() => analyze(photo)}
+              >
+                Replace with new selections
+              </button>
+            </div>
+            <p className="hint">
+              {draw
+                ? "Drag across a piece to draw its crop."
+                : "Select a numbered box or a preview to adjust its edges below. Exclude background objects and duplicate selections."}
+            </p>
+            <div
+              className={`bulk-canvas ${draw ? "drawing" : ""}`}
+              onPointerDown={(e) => {
+                if (!draw || busy || locked) return;
+                start.current = point(e);
+                e.currentTarget.setPointerCapture(e.pointerId);
+                setDraft(boxFromPoints(start.current, start.current));
+              }}
+              onPointerMove={(e) => {
+                if (start.current)
+                  setDraft(boxFromPoints(start.current, point(e)));
+              }}
+              onPointerUp={(e) => {
+                if (!start.current) return;
+                const end = point(e),
+                  begin = start.current;
+                start.current = null;
+                setDraft(null);
+                if (
+                  Math.abs(end.x - begin.x) > 0.02 &&
+                  Math.abs(end.y - begin.y) > 0.02
+                )
+                  addBox(boxFromPoints(begin, end));
+              }}
+              onPointerCancel={() => {
+                start.current = null;
+                setDraft(null);
+              }}
+            >
+              <img
+                src={photo}
+                alt="Group photo with numbered clothing selections"
+                draggable="false"
+              />
+              {pieces.map((p, n) => (
+                <button
+                  type="button"
+                  key={p.id}
+                  disabled={draw || busy || locked}
+                  aria-label={`Select piece ${n + 1}`}
+                  className={`bulk-box ${selected === p.id ? "active" : ""} ${p.included ? "" : "excluded"}`}
+                  style={{
+                    left: `${p.box.x * 100}%`,
+                    top: `${p.box.y * 100}%`,
+                    width: `${p.box.w * 100}%`,
+                    height: `${p.box.h * 100}%`,
+                  }}
+                  onClick={() => setSelected(p.id)}
+                >
+                  <span>{n + 1}</span>
+                </button>
+              ))}
+              {draft && (
+                <div
+                  className="bulk-box active"
+                  style={{
+                    pointerEvents: "none",
+                    left: `${draft.x * 100}%`,
+                    top: `${draft.y * 100}%`,
+                    width: `${draft.w * 100}%`,
+                    height: `${draft.h * 100}%`,
+                  }}
+                />
+              )}
+            </div>
+            {current && (
+              <fieldset disabled={busy || locked} className="bulk-editor">
+                <legend>Adjust piece {pieces.indexOf(current) + 1}</legend>
+                <div className="bulk-coordinates">
+                  {[
+                    ["x", "Left"],
+                    ["y", "Top"],
+                    ["w", "Width"],
+                    ["h", "Height"],
+                  ].map(([key, label]) => (
+                    <label key={key}>
+                      {label} (%)
+                      <input
+                        type="number"
+                        min={key === "w" || key === "h" ? 2 : 0}
+                        max={100}
+                        step="1"
+                        value={Math.round(current.box[key] * 100)}
+                        onChange={(e) =>
+                          resize(current, {
+                            ...current.box,
+                            [key]: Number(e.target.value) / 100,
+                          })
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => {
+                    setPieces((all) => all.filter((p) => p.id !== current.id));
+                    setSelected(null);
+                  }}
+                >
+                  Remove this selection
+                </button>
+              </fieldset>
+            )}
+            <div className="bulk-previews">
+              {pieces.map((p, n) => (
+                <article key={p.id} className={p.included ? "" : "excluded"}>
+                  <button
+                    type="button"
+                    className="bulk-preview-image"
+                    onClick={() => setSelected(p.id)}
+                    disabled={busy || locked}
+                    aria-label={`Adjust crop ${n + 1}`}
+                  >
+                    <img src={p.photo} alt={`Clothing crop ${n + 1}`} />
+                  </button>
+                  <label>
+                    <input
+                      type="checkbox"
+                      disabled={busy || locked}
+                      checked={p.included}
+                      onChange={(e) =>
+                        update(p.id, { included: e.target.checked })
+                      }
+                    />{" "}
+                    Include piece {n + 1}
+                  </label>
+                  <label>
+                    Color
+                    <select
+                      disabled={busy || locked}
+                      value={p.color}
+                      onChange={(e) => update(p.id, { color: e.target.value })}
+                    >
+                      {Object.keys(COLORS).map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Label (optional)
+                    <input
+                      disabled={busy || locked}
+                      maxLength="80"
+                      placeholder={`${p.color} ${category.toLowerCase()}`}
+                      value={p.name}
+                      onChange={(e) => update(p.id, { name: e.target.value })}
+                    />
+                  </label>
+                </article>
+              ))}
+            </div>
+            {!!pieces.length && (
+              <fieldset disabled={busy || locked}>
+                <legend>Dress styles for this batch</legend>
+                <div className="check-options">
+                  {stylesForCategory(category).map((s) => (
+                    <label key={s}>
+                      <input
+                        type="checkbox"
+                        checked={styles.includes(s)}
+                        onChange={(e) =>
+                          setStyles((all) =>
+                            e.target.checked
+                              ? [...all, s]
+                              : all.filter((v) => v !== s),
+                          )
+                        }
+                      />
+                      {s}
+                    </label>
+                  ))}
+                </div>
+                <p className="hint">
+                  Colors are estimates: confirm them above. These items will be
+                  available for Everyday occasions. Edit individual style and
+                  occasion tags in My wardrobe later.
+                </p>
+              </fieldset>
+            )}
+            <button
+              type="button"
+              className="button primary full"
+              disabled={busy || saving || !count || !styles.length}
+              onClick={save}
+            >
+              {saving
+                ? "Adding your pieces…"
+                : locked
+                  ? "Retry saving this batch"
+                  : `Add ${count} ${count === 1 ? "piece" : "pieces"} to my wardrobe`}
+            </button>
+            {locked && (
+              <p className="hint">
+                The selection is locked while confirming this save to prevent
+                duplicate imports. Close and reopen to start a different batch.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}

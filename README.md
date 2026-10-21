@@ -24,7 +24,17 @@ Use **Dress styles** in the item editor to describe suitability. Formal permits 
 
 Existing phase-one clothes are preserved and start with a Casual tag. Edit those tags to make suitable pieces eligible for other dress styles. A selected item must also fit the occasion; the app explains conflicts rather than silently substituting it. Backup format 2 includes dress styles; phase-one format 1 backups remain restorable. Database migration adds fields and expands the category constraint without removing records.
 
-Clothing labels are optional and default to the color and category. Pattern is no longer a required UI field; existing pattern data remains stored. Group-photo separation remains deferred.
+Clothing labels are optional and default to the color and category. Pattern is no longer a required UI field; existing pattern data remains stored. Group-photo importing is available through **Import group photo**.
+
+## Import clothes from one group photo
+
+1. Choose **Import group photo** and select Jeans / pants, Shirts, T-shirts, Hoodies, Traditional wear, or Shoes. The category you choose is used for all items in the batch; the app does not decide it for you. Traditional wear currently means tops such as kurtas, matching the outfit maker's top-and-pants structure.
+2. Select one JPEG, PNG, or WebP photo under 15 MB. The browser prepares a copy up to 2000 pixels wide/high; the original file is untouched.
+3. The local clothing finder proposes individual rectangles. First use needs internet to download the pinned Grounding DINO Tiny model (about 204 MB) from Hugging Face. The model is browser-cached when supported. Your image is processed in a worker on your device and is not transmitted to Hugging Face or another AI service. Slow or memory-limited devices can use the manual box controls.
+4. Review the numbered boxes and previews. Exclude unwanted detections, edit color estimates and optional labels, and select dress styles. **Draw a missing piece** lets you drag a new rectangle; **Add adjustable box** and the Left/Top/Width/Height fields also work without dragging. Adjusted crops recalculate their color estimate. A rectangular crop may include background or neighboring fabric; lay pieces apart for the cleanest results.
+5. Save the reviewed batch (1–24 items). Each crop becomes a separate wardrobe item, ready for outfit matching. The batch uses one database transaction and an import identifier: a failed request can be retried without duplicating the same batch. Re-uploading the same photo as a new import is intentionally a new batch; visual duplicate detection is not included.
+
+Color estimates are editable, and style tags apply to the whole batch; edit individual items afterward when needed. New items default to Everyday occasion eligibility. The importer does not automatically mark clothes worn or put them in laundry.
 
 ## Use your wardrobe
 
@@ -62,6 +72,8 @@ Name and favorite-color preferences are saved in the current browser and are not
 
 - `src/App.jsx` — application views and wardrobe interactions.
 - `src/components/` — outfit maker, reusable icons, dialogs, item editor, and wear recorder.
+- `src/workers/clothing.worker.js` — background clothing detection, isolated from the interface.
+- `src/lib/bulk-*.js` and `src/lib/segment-clothes.js` — crop geometry, color estimation, and local model integration.
 - `src/lib/wardrobe.js` — matching, last-worn calculations, image processing, and API client.
 - `src/App.css` — responsive desktop and mobile styling.
 - `backend/src/main/java/com/smartwardrobe/` — Spring Boot application, API, JDBC store, validation, and local-access filter.
@@ -88,12 +100,14 @@ See `docs/verification.md` for the actual verification results and limitations o
 
 ## Current scope and phase two
 
-This is a local, single-user application. It binds to the loopback address and does not include accounts, public hosting, multi-user authorization, or cloud synchronization. It has no paid AI or image-recognition dependency.
+This is a local, single-user application. It binds to the loopback address and does not include accounts, public hosting, multi-user authorization, or cloud synchronization. It has no paid AI service dependency. Bulk photo selection uses an open-source image model downloaded on first use; inference runs on the device.
 
-As agreed, automatic extraction of individual clothes from one group photograph is deferred to phase two. That phase needs a clothing-detection/segmentation model, handling of overlapping pieces and shadows, and user review of each crop. Batch selection of separate photos is also a future convenience feature. The current workflow adds and reviews one photographed item at a time.
+Bulk importing from a group photo is implemented. Batch selection of several separate photo files remains a future convenience feature. Automatic selections are suggestions, not a guarantee: review them before saving. Hidden fabric cannot be recovered from overlapping garments; crops retain the original photograph and its background.
 
 ## Technical references
 
+- [Grounding DINO Tiny ONNX model and Apache-2.0 license](https://huggingface.co/onnx-community/grounding-dino-tiny-ONNX)
+- [Transformers.js](https://huggingface.co/docs/transformers.js/index)
 - [Spring Boot file uploads](https://spring.io/guides/gs/uploading-files/)
 - [Spring SQL and JDBC support](https://docs.spring.io/spring-boot/reference/data/sql.html)
 - [H2 SQL database](https://h2database.com/html/main.html)

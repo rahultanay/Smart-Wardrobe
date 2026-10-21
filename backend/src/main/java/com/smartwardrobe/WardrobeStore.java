@@ -78,6 +78,31 @@ public class WardrobeStore {
         db.update("INSERT INTO wardrobe_item (id,name,category,color,pattern,occasions,photo,created_at,styles) VALUES (?,?,?,?,?,?,?,?,?)",id,i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",new LinkedHashSet<>(i.occasions())),i.photo(),Instant.now().toString(),String.join(",",styles(i.styles(),i.category())));
         return find(id);
     }
+    public record BulkInput(String requestId, List<ItemInput> items) {}
+    @Transactional
+    public List<Item> createBulk(BulkInput input) {
+        require(input!=null && input.requestId()!=null && input.items()!=null && !input.items().isEmpty() && input.items().size()<=24,"Choose between 1 and 24 pieces");
+        try { require(UUID.fromString(input.requestId()).toString().equals(input.requestId()),"Invalid import identifier"); }
+        catch(IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid import identifier"); }
+        input.items().forEach(WardrobeStore::validate);
+        require(input.items().stream().mapToLong(i -> i.photo().length()).sum()<=16_000_000,"This batch is too large. Import fewer pieces at a time");
+        String fingerprint;
+        try {
+            byte[] bytes=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(input.items());
+            fingerprint=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch(Exception e) { throw new IllegalStateException("Cannot fingerprint import",e); }
+        var existing=db.queryForList("SELECT fingerprint,item_ids FROM bulk_import WHERE request_id=?",input.requestId());
+        if(!existing.isEmpty()) {
+            require(fingerprint.equals(existing.get(0).get("FINGERPRINT")),"This import was already saved with a different selection");
+            return Arrays.stream(existing.get(0).get("ITEM_IDS").toString().split(",")).map(this::find).toList();
+        }
+        // Reserve the request before inserting items. A concurrent retry rolls back safely.
+        try { db.update("INSERT INTO bulk_import (request_id,fingerprint,item_ids) VALUES (?,?,?)",input.requestId(),fingerprint,""); }
+        catch(org.springframework.dao.DuplicateKeyException e) { throw new ResponseStatusException(HttpStatus.CONFLICT,"This import is already being saved. Retry in a moment"); }
+        var saved=input.items().stream().map(this::create).toList();
+        db.update("UPDATE bulk_import SET item_ids=? WHERE request_id=?",String.join(",",saved.stream().map(Item::id).toList()),input.requestId());
+        return saved;
+    }
     @Transactional
     public Item update(String id, ItemInput i) {
         find(id); validate(i);
