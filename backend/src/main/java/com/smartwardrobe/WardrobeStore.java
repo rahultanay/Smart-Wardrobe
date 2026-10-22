@@ -27,6 +27,16 @@ public class WardrobeStore {
             default -> true;
         };
     }
+    static List<String> effectiveStyles(Item item) {
+        var details=item.details();
+        boolean auto="auto".equals(details.get("styleMode")) || (!"manual".equals(details.get("styleMode")) && item.styles().equals(List.of("Casual")));
+        if(!auto)return item.styles();
+        String type=details.getOrDefault("garmentType","Unknown");
+        if(Set.of("Jeans","Chinos","Casual shirt","Plain T-shirt").contains(type))return List.of("Semi-formal","Casual");
+        if(Set.of("Joggers","Shorts","Graphic T-shirt","Sneakers","Sandals").contains(type))return List.of("Casual");
+        if(Set.of("Dress shirt","Dress trousers","Dress shoes").contains(type))return List.of("Formal","Semi-formal");
+        return switch(item.category()){case "Shirt"->List.of("Formal","Semi-formal","Casual");case "Pants","Shoes"->List.of("Formal","Semi-formal","Casual","Traditional");case "Traditional"->List.of("Traditional");case "T-shirt"->Set.of("Oversized","Relaxed").contains(details.getOrDefault("fit","Unknown"))?List.of("Casual"):List.of("Semi-formal","Casual");default->List.of("Casual");};
+    }
     static boolean validOutfit(List<String> categories) {
         return categories.stream().filter(TOPS::contains).count()==1 && Collections.frequency(categories,"Pants")==1 && Collections.frequency(categories,"Shoes")==categories.size()-2;
     }
@@ -57,7 +67,7 @@ public class WardrobeStore {
         require(COLORS.contains(Objects.toString(i.color(),"")),"Choose a valid color");
         require(PATTERNS.contains(Objects.toString(i.pattern(),"")),"Choose a valid pattern");
         require(i.occasions()!=null && !i.occasions().isEmpty() && i.occasions().size()<=7 && i.occasions().stream().allMatch(o -> o!=null && OCCASIONS.contains(o)),"Choose at least one valid occasion");
-        require(i.details()==null || (i.details().size()<=5 && i.details().entrySet().stream().allMatch(e -> Set.of("shade","hex","fit","garmentType").contains(e.getKey()) && e.getValue()!=null && e.getValue().length()<=60)),"Invalid garment details");
+        require(i.details()==null || (i.details().size()<=5 && i.details().entrySet().stream().allMatch(e -> Set.of("shade","hex","fit","garmentType","styleMode").contains(e.getKey()) && e.getValue()!=null && e.getValue().length()<=60)),"Invalid garment details");
         require(i.details()==null || !i.details().containsKey("fit") || Set.of("Unknown","Skinny","Slim","Regular","Relaxed","Oversized").contains(i.details().get("fit")),"Choose a valid fit");
         require(i.details()==null || !i.details().containsKey("hex") || i.details().get("hex").matches("#[A-Fa-f0-9]{6}"),"Invalid shade color");
         var tags=styles(i.styles(),i.category());
@@ -140,7 +150,7 @@ public class WardrobeStore {
         require(validOutfit(chosen.stream().map(Item::category).toList()),"Choose one top, one pair of pants, and optionally shoes");
         String dressStyle=input.dressStyle()==null?"Casual":input.dressStyle();
         require(STYLES.contains(dressStyle),"Choose a valid dress style");
-        require(chosen.stream().allMatch(i -> i.styles().contains(dressStyle) && suitable(i.category(),dressStyle)),"An item does not suit the selected dress style");
+        require(chosen.stream().allMatch(i -> effectiveStyles(i).contains(dressStyle) && suitable(i.category(),dressStyle)),"An item does not suit the selected dress style");
         require(chosen.stream().allMatch(i -> i.occasions().contains(input.occasion()) || i.occasions().contains("Everyday")),"An item does not suit the selected occasion");
         String id=UUID.randomUUID().toString();
         db.update("INSERT INTO wear_event (id,worn_at,occasion,dress_style) VALUES (?,?,?,?)",id,time.toString(),input.occasion(),dressStyle);

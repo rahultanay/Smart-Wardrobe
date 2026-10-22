@@ -89,3 +89,58 @@ export function shadeEstimate(rgb, color) {
   else shade += ` ${color.toLowerCase()}`;
   return { shade, hex };
 }
+
+export function automaticStyles(item) {
+  const type = item.details?.garmentType || "Unknown";
+  if (type !== "Unknown") return suggestedStyles(item.category, item.details);
+  if (item.category === "Shirt") return ["Formal", "Semi-formal", "Casual"];
+  if (item.category === "Pants" || item.category === "Shoes")
+    return ["Formal", "Semi-formal", "Casual", "Traditional"];
+  return suggestedStyles(item.category, item.details);
+}
+export function effectiveStyles(item) {
+  if (item.details?.styleMode === "manual") return item.styles || [];
+  if (item.details?.styleMode === "auto") return automaticStyles(item);
+  // Legacy explicit multi-style choices are retained; a lone Casual was the old default.
+  if (
+    item.styles?.length &&
+    !(item.styles.length === 1 && item.styles[0] === "Casual")
+  )
+    return item.styles;
+  return automaticStyles(item);
+}
+export function lookStyleScore(top, pants, style) {
+  const neutral = new Set(["White", "Black", "Grey", "Navy", "Beige", "Brown"]);
+  const light = (item) => {
+    const hex = item.details?.hex;
+    return hex
+      ? [1, 3, 5].reduce(
+          (sum, k) => sum + parseInt(hex.slice(k, k + 2), 16),
+          0,
+        ) / 3
+      : ({ White: 235, Black: 35, Grey: 145, Navy: 55, Blue: 135, Beige: 190 }[
+          item.color
+        ] ?? 130);
+  };
+  const contrast = Math.abs(light(top) - light(pants));
+  if (style === "Formal")
+    return (
+      (neutral.has(top.color) ? 4 : 0) +
+      (neutral.has(pants.color) ? 5 : 0) +
+      (contrast > 65 ? 5 : 0) +
+      (light(pants) < 125 ? 3 : 0) +
+      (top.pattern === "Solid" ? 2 : -2) +
+      (pants.pattern === "Solid" ? 2 : -3)
+    );
+  if (style === "Semi-formal")
+    return (
+      (neutral.has(pants.color) ? 3 : 0) +
+      (contrast > 40 ? 3 : 0) +
+      (top.category === "Shirt" ? 2 : 0)
+    );
+  return (
+    (top.color !== pants.color ? 2 : 0) +
+    (top.category === "T-shirt" || top.category === "Hoodie" ? 3 : 0) +
+    (contrast < 65 ? 2 : 0)
+  );
+}

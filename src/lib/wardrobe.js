@@ -1,4 +1,9 @@
-import { fitScore, shadeEstimate } from "./clothing-details.js";
+import {
+  fitScore,
+  shadeEstimate,
+  effectiveStyles,
+  lookStyleScore,
+} from "./clothing-details.js";
 export const CATEGORIES = [
   "Shirt",
   "T-shirt",
@@ -20,9 +25,7 @@ export function stylesForCategory(category) {
   return DRESS_STYLES;
 }
 export function itemStyles(item) {
-  return (
-    item.styles ?? [item.category === "Traditional" ? "Traditional" : "Casual"]
-  );
+  return effectiveStyles(item);
 }
 export function fitsContext(item, occasion, dressStyle) {
   return (
@@ -201,6 +204,7 @@ export function recommend(
         const prior = latestByKey.get(key);
         const score =
           matching +
+          lookStyleScore(top, pants, dressStyle) +
           fitScore(top, pants, dressStyle) +
           outfit.reduce((sum, i) => sum + rank(i), 0) -
           printPenalty -
@@ -215,7 +219,7 @@ export function recommend(
           prior,
           dressStyle,
           occasion,
-          reason: `${pairing} ${top.details?.fit && pants.details?.fit ? `Fit: ${top.details.fit.toLowerCase()} top / ${pants.details.fit.toLowerCase()} pants.` : ""} ${shoes ? `${shoes.color} shoes complete the look.` : "Add suitable shoes to complete this look."}`,
+          reason: `${dressStyle === "Formal" ? "Prioritizes restrained colors and clear shirt/pants contrast." : dressStyle === "Semi-formal" ? "Balances a smart neutral base with softer contrast." : "Prioritizes relaxed pieces and flexible color pairings."} ${outfit.some((i) => i.details?.styleMode !== "manual" && (!i.details?.garmentType || i.details.garmentType === "Unknown")) ? "Garment construction is unconfirmed; this is a color-led suggestion. Confirm the garment type for a stricter dress code." : ""} ${pairing} ${top.details?.fit && pants.details?.fit ? `Fit: ${top.details.fit.toLowerCase()} top / ${pants.details.fit.toLowerCase()} pants.` : ""} ${shoes ? `${shoes.color} shoes complete the look.` : "Add suitable shoes to complete this look."}`,
         });
       }
   const sorted = result.sort(

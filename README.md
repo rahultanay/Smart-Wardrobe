@@ -120,3 +120,9 @@ Bulk importing from a group photo is implemented. Batch selection of several sep
 Every crop has its own category, garment type, fit, shade and dress styles. Use the initial category buttons only to set a default for new boxes. Rotation supports 90-degree shortcuts, ±1°, ±5°, and a typed angle. Styles are suggested from category, confirmed garment type and fit, rather than claimed visual recognition. Fit cannot be reliably inferred from a flat photograph; choose it explicitly. Unknown details stay marked Unknown.
 
 Shade estimates use sampled fabric colors and remain editable because lighting and backgrounds affect photographs. Existing saved items receive shade/hex estimates through an additive migration. Their IDs, photos, history, and availability are retained. Outfit ranking uses shade contrast and fit compatibility; an oversized/relaxed top with skinny pants is excluded under the current fit preference. Separate items retain their own IDs even when their shades are similar.
+
+## Automatic outfit style and stacked previews
+
+Untouched style tags now use automatic mode: category, photo shade/contrast, garment type and fit determine eligibility and ranking. Explicit manual style selections take precedence. Formal favors neutral colors, light/dark contrast and restrained patterns; semi-formal uses a smart neutral base with softer contrast; casual favors relaxed pieces and flexible palettes. Unknown garment construction produces provisional color-led suggestions, not a claim of image recognition. Confirm Jeans versus Dress trousers to enforce a dress code. Legacy lone Casual defaults are treated as automatic; select manual mode to retain an intentional restriction.
+
+Outfit previews stack the top above pants and shoes, including combination cards. These use original garment photos rather than reconstructing a person wearing them.

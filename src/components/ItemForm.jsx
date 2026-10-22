@@ -36,12 +36,16 @@ export default function ItemForm({
           occasions: item.occasions,
           photo: item.photo,
           styles: itemStyles(item),
-          details: item.details || {},
+          details: {
+            ...item.details,
+            styleMode: item.details?.styleMode || "auto",
+          },
         }
       : {
           ...emptyItem,
           category: initialStyle === "Traditional" ? "Traditional" : "Shirt",
           styles: [initialStyle],
+          details: { styleMode: "auto" },
         },
   );
   const [busy, setBusy] = useState(false),
@@ -167,22 +171,44 @@ export default function ItemForm({
             setForm((f) => ({ ...f, details, ...(styles ? { styles } : {}) }))
           }
         />
+        <label>
+          <input
+            type="checkbox"
+            checked={form.details?.styleMode !== "manual"}
+            onChange={(e) =>
+              change("details", {
+                ...form.details,
+                styleMode: e.target.checked ? "auto" : "manual",
+              })
+            }
+          />
+          Choose dress styles automatically
+        </label>
+        <p className="hint">
+          Automatic mode uses photo color and contrast, category, fit and
+          garment type. Unknown construction stays provisional; confirm jeans
+          versus dress trousers for reliable formal looks.
+        </p>
         <fieldset>
-          <legend>Dress styles</legend>
+          <legend>Dress styles (manual override)</legend>
           <div className="check-options">
             {stylesForCategory(form.category).map((style) => (
               <label key={style}>
                 <input
                   type="checkbox"
                   checked={form.styles.includes(style)}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setForm((f) => ({
+                      ...f,
+                      details: { ...f.details, styleMode: "manual" },
+                    }));
                     change(
                       "styles",
                       e.target.checked
                         ? [...form.styles, style]
                         : form.styles.filter((s) => s !== style),
-                    )
-                  }
+                    );
+                  }}
                 />
                 {style}
               </label>

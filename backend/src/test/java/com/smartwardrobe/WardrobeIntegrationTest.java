@@ -176,4 +176,16 @@ class WardrobeIntegrationTest {
   mvc.perform(post("/api/restore").contentType("application/json").content(backup)).andExpect(status().isOk());
   mvc.perform(get("/api/items")).andExpect(jsonPath("$[0].details.fit").value("Slim")).andExpect(jsonPath("$[0].details.hex").value("#344565"));
  }
+
+ @Test void automaticStyleOutfitsCanBeRecordedAndManualChoicesWin() throws Exception {
+  var shirt=input("Auto shirt","Shirt");shirt.put("details",Map.of("styleMode","auto"));
+  var pants=input("Auto pants","Pants");pants.put("details",Map.of("styleMode","auto"));
+  String a=json.readTree(mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(shirt))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+  String b=json.readTree(mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(pants))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+  var look=new LinkedHashMap<>(wear(List.of(a,b),"Office",0));look.put("dressStyle","Formal");
+  mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(look))).andExpect(status().isCreated());
+  shirt.put("details",Map.of("styleMode","manual"));shirt.put("styles",List.of("Casual"));
+  mvc.perform(put("/api/items/"+a).contentType("application/json").content(json.writeValueAsString(shirt))).andExpect(status().isOk());
+  mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(look))).andExpect(status().isBadRequest());
+ }
 }

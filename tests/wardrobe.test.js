@@ -88,7 +88,7 @@ test("missing categories and empty wardrobes return no fabricated suggestions", 
 });
 
 const styled = (id, category, color, styles, extra = {}) =>
-  item(id, category, color, { styles, ...extra });
+  item(id, category, color, { styles, details:{styleMode:"manual"}, ...extra });
 const mixed = [
   styled("formal-shirt", "Shirt", "White", ["Formal", "Semi-formal", "Casual"]),
   styled("navy-shirt", "Shirt", "Navy", ["Formal", "Semi-formal"]),
@@ -157,9 +157,9 @@ test("traditional looks use traditional tops and explicitly suitable bottoms", (
     ["kurta", "traditional-bottoms"],
   );
 });
-test("old items default to casual and cannot accidentally enter formal suggestions", () => {
+test("legacy default tags produce provisional color-led formal suggestions", () => {
   assert.ok(recommend(closet, [], "Everyday", "", [], "Casual").length);
-  assert.deepEqual(recommend(closet, [], "Everyday", "", [], "Formal"), []);
+  assert.ok(recommend(closet, [], "Everyday", "", [], "Formal").length);
 });
 test("clothing alternatives appear before many shoe variants", () => {
   const shoes = Array.from({ length: 20 }, (_, n) =>

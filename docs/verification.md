@@ -32,3 +32,10 @@ Java 26.0.2.1 was used on this machine; Java 21 remains recommended for Spring B
 - Fit/type are confirmed by the user; style suggestions are rules based on those details, not visual garment classification. Shade/hex estimates use photo samples and remain editable.
 - An offline database copy was taken before migration. The installed database has 10 items, all with shade estimates; seven pants retain their existing IDs and photos.
 - Existing manual browser upload limitations remain; no complete upload-to-save browser walkthrough is claimed.
+
+## Outfit-first opening and automatic styles
+
+- 28 JavaScript tests and 15 backend tests passed. Backend tests verify that auto-generated formal outfits can be recorded and manual casual overrides are respected.
+- Browser verified the opening style/occasion chooser and Generate outfits button before wardrobe counts. Generated seven formal color-led combinations from the existing 10-item wardrobe without importing or changing personal records.
+- Garment photos are stacked top, pants, then footwear in the featured look and combination cards.
+- Automatic mode uses sampled photo colors plus category and confirmed metadata. It does not classify fabric, collars, denim, or fit visually. Unknown construction is explicitly described as provisional; legacy default Casual tags are inferred as automatic because earlier versions did not record whether they were touched. Users can select manual mode to retain an intentional restriction.

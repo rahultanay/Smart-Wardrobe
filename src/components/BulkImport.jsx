@@ -100,7 +100,11 @@ export default function BulkImport({ onClose, onSave }) {
       rotation: 0,
       category,
       styles: suggestedStyles(category),
-      details: { fit: "Unknown", garmentType: typesFor(category)[0] },
+      details: {
+        fit: "Unknown",
+        garmentType: typesFor(category)[0],
+        styleMode: "auto",
+      },
     };
     setPieces((all) => [
       ...all,
@@ -539,6 +543,21 @@ export default function BulkImport({ onClose, onSave }) {
                   />
                   <fieldset disabled={busy || locked || p.saved}>
                     <legend>Dress styles</legend>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={p.details?.styleMode !== "manual"}
+                        onChange={(e) =>
+                          update(p.id, {
+                            details: {
+                              ...p.details,
+                              styleMode: e.target.checked ? "auto" : "manual",
+                            },
+                          })
+                        }
+                      />
+                      Choose automatically
+                    </label>
                     {styleOptions(p.category || category).map((s) => (
                       <label key={s}>
                         <input
@@ -546,6 +565,7 @@ export default function BulkImport({ onClose, onSave }) {
                           checked={(p.styles || []).includes(s)}
                           onChange={(e) =>
                             update(p.id, {
+                              details: { ...p.details, styleMode: "manual" },
                               styles: e.target.checked
                                 ? [...(p.styles || []), s]
                                 : (p.styles || []).filter((x) => x !== s),

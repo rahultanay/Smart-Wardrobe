@@ -2144,3 +2144,18 @@ dialog:has(.bulk-import) {
   border-radius: 7px;
   cursor: pointer;
 }
+
+/* A complete look follows the body: top, pants, then footwear. */
+.outfit-pieces {flex-direction:column;align-items:stretch;gap:5px}
+.outfit-piece {display:grid;grid-template-columns:minmax(100px,190px) minmax(90px,1fr);column-gap:18px;align-self:stretch;text-align:left;align-items:center;width:100%;flex:none}
+.outfit-piece>div {grid-column:1;grid-row:1 / span 6;height:160px;margin:0;padding:6px;border-radius:0;background:#f8f9f2}
+.outfit-piece>span,.outfit-piece>h3,.outfit-piece>p,.outfit-piece>button {grid-column:2}
+.outfit-piece.silhouette-pants>div {height:210px}
+.outfit-piece.silhouette-shoes>div {height:85px}
+.outfit-piece.missing-shoes {display:block;text-align:center}
+.combination-photos {display:flex!important;flex-direction:column;align-items:center;justify-content:center;height:300px!important;gap:0!important;background:#f8f9f2}
+.combination-photos img {width:80%!important;object-fit:contain!important;border-radius:0!important;flex:none!important}
+.combination-photos img.silhouette-top {height:105px!important}
+.combination-photos img.silhouette-pants {height:140px!important}
+.combination-photos img.silhouette-shoes {height:55px!important}
+@media(max-width:600px){.outfit-piece {grid-template-columns:minmax(85px,140px) minmax(90px,1fr);gap:8px}.outfit-piece>div {height:140px}.outfit-piece.silhouette-pants>div {height:180px}}

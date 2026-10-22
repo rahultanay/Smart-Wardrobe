@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  CATEGORIES,
+  CATEGORIES, itemStyles,
   COLORS,
   api,
   lastWear,
@@ -74,7 +74,7 @@ function App() {
     (i) =>
       i.archived === showArchive &&
       (category === "All" || i.category === category) &&
-      `${i.name} ${i.color} ${i.pattern} ${i.details?.shade||""} ${i.details?.fit||""}`
+      `${i.name} ${i.color} ${i.pattern} ${i.details?.shade || ""} ${i.details?.fit || ""}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
@@ -255,7 +255,7 @@ function App() {
             {i.details?.garmentType || ""} · Fit: {i.details?.fit || "Unknown"}
           </p>
           <p className="item-style-tags">
-            {(i.styles || ["Casual"]).join(" · ")}
+            {itemStyles(i).join(" · ")}
           </p>
           <p className="last-worn">
             {last ? `${ago(last.wornAt)} · ${last.occasion}` : "Not worn yet"}
@@ -610,7 +610,24 @@ function App() {
               )}
             </>
           )}
-          {view === "outfits" && outfitPanel()}
+          {view === "outfits" && (
+            <>
+              {outfitPanel()}
+              <section className="stats" aria-label="Wardrobe readiness">
+                {[
+                  [active.length, "Pieces in your wardrobe"],
+                  [available.length, "Ready to wear"],
+                  [laundry.length, "In laundry"],
+                  [monthCount, "Looks worn this month"],
+                ].map(([number, label]) => (
+                  <div className="stat" key={label}>
+                    <span className="eyebrow">{label}</span>
+                    <strong>{loading ? "—" : number}</strong>
+                  </div>
+                ))}
+              </section>
+            </>
+          )}
           {view === "laundry" && (
             <>
               <div className="laundry-summary">
