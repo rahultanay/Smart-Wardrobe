@@ -35,14 +35,16 @@ public class WardrobeStore {
     static final Set<String> PATTERNS = Set.of("Solid","Striped","Checked","Printed");
     final JdbcTemplate db;
     public WardrobeStore(JdbcTemplate db) { this.db = db; }
-    public record Item(String id, String name, String category, String color, String pattern, List<String> occasions, String photo, boolean laundry, boolean archived, String createdAt, List<String> styles) {}
-    public record ItemInput(String name, String category, String color, String pattern, List<String> occasions, String photo, List<String> styles) {}
+    public record Item(String id, String name, String category, String color, String pattern, List<String> occasions, String photo, boolean laundry, boolean archived, String createdAt, List<String> styles, Map<String,String> details) {}
+    public record ItemInput(String name, String category, String color, String pattern, List<String> occasions, String photo, List<String> styles, Map<String,String> details) {
+ public ItemInput(String name,String category,String color,String pattern,List<String> occasions,String photo,List<String> styles){this(name,category,color,pattern,occasions,photo,styles,null);}
+ }
     public record WornItem(String id, String name, String category) {}
     public record Wear(String id, String wornAt, String occasion, List<WornItem> items, String dressStyle) {}
     public record WearInput(List<String> itemIds, String occasion, String wornAt, String dressStyle) {}
     public record Snapshot(int version, List<Item> items, List<Wear> history) {}
     static void require(boolean valid, String message) { if (!valid) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message); }
-    private final org.springframework.jdbc.core.RowMapper<Item> itemMapper = (r,n) -> new Item(r.getString("id"),r.getString("name"),r.getString("category"),r.getString("color"),r.getString("pattern"),List.of(r.getString("occasions").split(",")),r.getString("photo"),r.getBoolean("laundry"),r.getBoolean("archived"),r.getString("created_at"),List.of(r.getString("styles").split(",")));
+    private final org.springframework.jdbc.core.RowMapper<Item> itemMapper = (r,n) -> new Item(r.getString("id"),r.getString("name"),r.getString("category"),r.getString("color"),r.getString("pattern"),List.of(r.getString("occasions").split(",")),r.getString("photo"),r.getBoolean("laundry"),r.getBoolean("archived"),r.getString("created_at"),List.of(r.getString("styles").split(",")),ClothingDetails.read(r.getString("details"),r.getString("photo"),r.getString("color")));
     public List<Item> items() {
         return db.query("SELECT * FROM wardrobe_item ORDER BY created_at DESC", itemMapper);
     }
@@ -55,6 +57,9 @@ public class WardrobeStore {
         require(COLORS.contains(Objects.toString(i.color(),"")),"Choose a valid color");
         require(PATTERNS.contains(Objects.toString(i.pattern(),"")),"Choose a valid pattern");
         require(i.occasions()!=null && !i.occasions().isEmpty() && i.occasions().size()<=7 && i.occasions().stream().allMatch(o -> o!=null && OCCASIONS.contains(o)),"Choose at least one valid occasion");
+        require(i.details()==null || (i.details().size()<=5 && i.details().entrySet().stream().allMatch(e -> Set.of("shade","hex","fit","garmentType").contains(e.getKey()) && e.getValue()!=null && e.getValue().length()<=60)),"Invalid garment details");
+        require(i.details()==null || !i.details().containsKey("fit") || Set.of("Unknown","Skinny","Slim","Regular","Relaxed","Oversized").contains(i.details().get("fit")),"Choose a valid fit");
+        require(i.details()==null || !i.details().containsKey("hex") || i.details().get("hex").matches("#[A-Fa-f0-9]{6}"),"Invalid shade color");
         var tags=styles(i.styles(),i.category());
         require(!tags.isEmpty() && tags.size()<=4 && tags.stream().allMatch(t -> t!=null && STYLES.contains(t) && suitable(i.category(),t)),"Choose valid dress styles for this category");
         require(i.photo()!=null && i.photo().length()<=2_000_000 && Pattern.matches("data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+",i.photo()),"Add a JPEG, PNG, or WebP photo under 1.5 MB");
@@ -75,7 +80,7 @@ public class WardrobeStore {
     @Transactional
     public Item create(ItemInput i) {
         validate(i); String id=UUID.randomUUID().toString();
-        db.update("INSERT INTO wardrobe_item (id,name,category,color,pattern,occasions,photo,created_at,styles) VALUES (?,?,?,?,?,?,?,?,?)",id,i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",new LinkedHashSet<>(i.occasions())),i.photo(),Instant.now().toString(),String.join(",",styles(i.styles(),i.category())));
+        db.update("INSERT INTO wardrobe_item (id,name,category,color,pattern,occasions,photo,created_at,styles,details) VALUES (?,?,?,?,?,?,?,?,?,?)",id,i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",new LinkedHashSet<>(i.occasions())),i.photo(),Instant.now().toString(),String.join(",",styles(i.styles(),i.category())),ClothingDetails.encode(ClothingDetails.read(ClothingDetails.encode(i.details()),i.photo(),i.color())));
         return find(id);
     }
     public record BulkInput(String requestId, List<ItemInput> items) {}
@@ -106,7 +111,7 @@ public class WardrobeStore {
     @Transactional
     public Item update(String id, ItemInput i) {
         find(id); validate(i);
-        db.update("UPDATE wardrobe_item SET name=?,category=?,color=?,pattern=?,occasions=?,photo=?,styles=? WHERE id=?",i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",new LinkedHashSet<>(i.occasions())),i.photo(),String.join(",",styles(i.styles(),i.category())),id);
+        db.update("UPDATE wardrobe_item SET name=?,category=?,color=?,pattern=?,occasions=?,photo=?,styles=?,details=? WHERE id=?",i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",new LinkedHashSet<>(i.occasions())),i.photo(),String.join(",",styles(i.styles(),i.category())),ClothingDetails.encode(ClothingDetails.read(ClothingDetails.encode(i.details()),i.photo(),i.color())),id);
         return find(id);
     }
     @Transactional
@@ -151,11 +156,11 @@ public class WardrobeStore {
         for(Item i:data.items()) {
             require(i!=null && i.id()!=null && i.createdAt()!=null,"Invalid backup item");
             try { UUID.fromString(i.id()); Instant.parse(i.createdAt()); } catch(Exception e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid backup item identifier or date"); }
-            require(ids.add(i.id()),"Duplicate backup item"); validate(new ItemInput(i.name(),i.category(),i.color(),i.pattern(),i.occasions(),i.photo(),i.styles()));
+            require(ids.add(i.id()),"Duplicate backup item"); validate(new ItemInput(i.name(),i.category(),i.color(),i.pattern(),i.occasions(),i.photo(),i.styles(),i.details()));
         }
         int added=0,events=0;
         for(Item i:data.items()) if(db.queryForObject("SELECT COUNT(*) FROM wardrobe_item WHERE id=?",Integer.class,i.id())==0) {
-            db.update("INSERT INTO wardrobe_item (id,name,category,color,pattern,occasions,photo,laundry,archived,created_at,styles) VALUES (?,?,?,?,?,?,?,?,?,?,?)",i.id(),i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",i.occasions()),i.photo(),i.laundry(),i.archived(),i.createdAt(),String.join(",",styles(i.styles(),i.category()))); added++;
+            db.update("INSERT INTO wardrobe_item (id,name,category,color,pattern,occasions,photo,laundry,archived,created_at,styles,details) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",i.id(),i.name().trim(),i.category(),i.color(),i.pattern(),String.join(",",i.occasions()),i.photo(),i.laundry(),i.archived(),i.createdAt(),String.join(",",styles(i.styles(),i.category())),ClothingDetails.encode(ClothingDetails.read(ClothingDetails.encode(i.details()),i.photo(),i.color()))); added++;
         }
         Set<String> wearIds=new HashSet<>();
         for(Wear w:data.history()) {

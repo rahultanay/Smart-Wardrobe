@@ -114,3 +114,9 @@ Bulk importing from a group photo is implemented. Batch selection of several sep
 - [Spring SQL and JDBC support](https://docs.spring.io/spring-boot/reference/data/sql.html)
 - [H2 SQL database](https://h2database.com/html/main.html)
 - [Browser image pixel processing](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas)
+
+## Mixed crops, fine rotation, fit and shades
+
+Every crop has its own category, garment type, fit, shade and dress styles. Use the initial category buttons only to set a default for new boxes. Rotation supports 90-degree shortcuts, ±1°, ±5°, and a typed angle. Styles are suggested from category, confirmed garment type and fit, rather than claimed visual recognition. Fit cannot be reliably inferred from a flat photograph; choose it explicitly. Unknown details stay marked Unknown.
+
+Shade estimates use sampled fabric colors and remain editable because lighting and backgrounds affect photographs. Existing saved items receive shade/hex estimates through an additive migration. Their IDs, photos, history, and availability are retained. Outfit ranking uses shade contrast and fit compatibility; an oversized/relaxed top with skinny pants is excluded under the current fit preference. Separate items retain their own IDs even when their shades are similar.

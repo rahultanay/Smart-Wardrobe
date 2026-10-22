@@ -24,3 +24,11 @@ Java 26.0.2.1 was used on this machine; Java 21 remains recommended for Spring B
 - The category chooser and upload entry screen were checked in the browser, including a 390-pixel mobile viewport with no horizontal overflow. A full file-upload/save browser walkthrough was not performed because the earlier browser upload refusal remains respected. Crop persistence and retry behavior were verified through isolated backend tests; the browser worker was production-bundled but its inference path was not manually exercised.
 - New library dependencies were checked with npm audit: zero known vulnerabilities at the time of verification.
 - Automatic detection is not guaranteed for all layouts, folds, lighting, or categories. Manual draw/adjust/exclude controls remain available, including when model download or inference fails. Crops are rectangular photographs, not background-free silhouettes.
+
+## Mixed categories, fine rotation, fit and shade update
+
+- 27 JavaScript tests passed; 14 backend tests passed, including garment metadata edit/backup/restore. Production builds passed.
+- Each crop can have its own category and style tags. Fine rotation includes typed angles and ±1°/±5° controls alongside ±90°.
+- Fit/type are confirmed by the user; style suggestions are rules based on those details, not visual garment classification. Shade/hex estimates use photo samples and remain editable.
+- An offline database copy was taken before migration. The installed database has 10 items, all with shade estimates; seven pants retain their existing IDs and photos.
+- Existing manual browser upload limitations remain; no complete upload-to-save browser walkthrough is claimed.

@@ -74,7 +74,7 @@ function App() {
     (i) =>
       i.archived === showArchive &&
       (category === "All" || i.category === category) &&
-      `${i.name} ${i.color} ${i.pattern}`
+      `${i.name} ${i.color} ${i.pattern} ${i.details?.shade||""} ${i.details?.fit||""}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
@@ -248,9 +248,12 @@ function App() {
               className="color-dot"
               style={{ background: COLORS[i.color] }}
             />{" "}
-            {i.color}
+            {i.details?.shade || i.color}
           </p>
           <h3>{i.name}</h3>
+          <p className="hint">
+            {i.details?.garmentType || ""} · Fit: {i.details?.fit || "Unknown"}
+          </p>
           <p className="item-style-tags">
             {(i.styles || ["Casual"]).join(" · ")}
           </p>
@@ -865,6 +868,11 @@ function App() {
       {modal?.type === "details" && (
         <Modal title={modal.item.name} onClose={() => setModal(null)}>
           <div className="item-history">
+            <p>
+              Shade: {modal.item.details?.shade || modal.item.color} · Fit:{" "}
+              {modal.item.details?.fit || "Unknown"} · Type:{" "}
+              {modal.item.details?.garmentType || "Unknown"}
+            </p>
             <img src={modal.item.photo} alt={modal.item.name} />
             <p className="hint">
               Every recorded wear, across every occasion. Laundry never clears

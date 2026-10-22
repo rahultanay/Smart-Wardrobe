@@ -1,3 +1,4 @@
+import { fitScore, shadeEstimate } from "./clothing-details.js";
 export const CATEGORIES = [
   "Shirt",
   "T-shirt",
@@ -25,6 +26,17 @@ export function itemStyles(item) {
 }
 export function fitsContext(item, occasion, dressStyle) {
   return (
+    !(
+      dressStyle === "Formal" &&
+      [
+        "Jeans",
+        "Joggers",
+        "Shorts",
+        "Graphic T-shirt",
+        "Sneakers",
+        "Sandals",
+      ].includes(item.details?.garmentType)
+    ) &&
     itemStyles(item).includes(dressStyle) &&
     stylesForCategory(item.category).includes(dressStyle) &&
     (item.occasions.includes(occasion) || item.occasions.includes("Everyday"))
@@ -66,7 +78,16 @@ const pairs = new Set([
   "Purple:Yellow",
 ]);
 export function pairScore(a, b) {
-  if (a.color === b.color) return 2;
+  if (a.color === b.color) {
+    const ah = a.details?.hex,
+      bh = b.details?.hex;
+    if (ah && bh) {
+      const lum = (h) =>
+        [1, 3, 5].reduce((s, k) => s + parseInt(h.slice(k, k + 2), 16), 0) / 3;
+      return Math.abs(lum(ah) - lum(bh)) > 55 ? 5 : 2;
+    }
+    return 2;
+  }
   if (neutrals.has(a.color) || neutrals.has(b.color)) return 5;
   return pairs.has([a.color, b.color].sort().join(":")) ? 4 : 1;
 }
@@ -165,6 +186,7 @@ export function recommend(
   for (const top of groups[0].slice(0, 20))
     for (const pants of groups[1].slice(0, 20))
       for (const shoes of shoeChoices) {
+        if (fitScore(top, pants, dressStyle) <= -10) continue;
         const outfit = [top, pants, ...(shoes ? [shoes] : [])];
         const matching =
           pairScore(top, pants) +
@@ -179,11 +201,12 @@ export function recommend(
         const prior = latestByKey.get(key);
         const score =
           matching +
+          fitScore(top, pants, dressStyle) +
           outfit.reduce((sum, i) => sum + rank(i), 0) -
           printPenalty -
           (prior ? Math.max(0, 10 - daysAgo(prior.wornAt)) : 0);
         const pairing = neutrals.has(pants.color)
-          ? `${pants.color} pants give your ${top.color.toLowerCase()} ${top.category.toLowerCase()} a neutral base.`
+          ? `${pants.details?.shade || pants.color} pants give your ${top.color.toLowerCase()} ${top.category.toLowerCase()} a neutral base.`
           : `${top.color} and ${pants.color.toLowerCase()} make ${pairScore(top, pants) >= 4 ? "a balanced" : "a bolder"} pairing.`;
         result.push({
           key,
@@ -192,7 +215,7 @@ export function recommend(
           prior,
           dressStyle,
           occasion,
-          reason: `${pairing} ${shoes ? `${shoes.color} shoes complete the look.` : "Add suitable shoes to complete this look."}`,
+          reason: `${pairing} ${top.details?.fit && pants.details?.fit ? `Fit: ${top.details.fit.toLowerCase()} top / ${pants.details.fit.toLowerCase()} pants.` : ""} ${shoes ? `${shoes.color} shoes complete the look.` : "Add suitable shoes to complete this look."}`,
         });
       }
   const sorted = result.sort(
@@ -280,7 +303,7 @@ export async function photoData(file, { maxSide = 1000 } = {}) {
   const color = Object.entries(COLORS).sort(
     (a, b) => distance(a[1], rgb) - distance(b[1], rgb),
   )[0][0];
-  return { photo, color };
+  return { photo, color, details: shadeEstimate(rgb, color) };
 }
 function distance(hex, rgb) {
   return rgb.reduce(

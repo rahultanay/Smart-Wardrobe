@@ -1,3 +1,4 @@
+import { shadeEstimate } from "./clothing-details.js";
 import { COLORS } from "./wardrobe.js";
 import { clampBox, rotationLayout } from "./bulk-regions.js";
 export async function loadPhoto(photo) {
@@ -66,15 +67,25 @@ export function cropPhoto(image, region) {
   // Keep the real rectangular crop: no generated pixels or reconstructed hidden fabric.
   const layout = rotationLayout(canvas.width, canvas.height, region.rotation);
   if (!layout.angle)
-    return { photo: canvas.toDataURL("image/jpeg", 0.85), color };
+    return {
+      photo: canvas.toDataURL("image/jpeg", 0.85),
+      color,
+      details: shadeEstimate(rgb, color),
+    };
   const rotated = document.createElement("canvas");
   rotated.width = layout.width;
   rotated.height = layout.height;
   const rotatedContext = rotated.getContext("2d");
+  rotatedContext.fillStyle = "#f4f1e9";
+  rotatedContext.fillRect(0, 0, rotated.width, rotated.height);
   rotatedContext.translate(rotated.width / 2, rotated.height / 2);
   rotatedContext.rotate((layout.angle * Math.PI) / 180);
   rotatedContext.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
-  return { photo: rotated.toDataURL("image/jpeg", 0.85), color };
+  return {
+    photo: rotated.toDataURL("image/jpeg", 0.85),
+    color,
+    details: shadeEstimate(rgb, color),
+  };
 }
 function distance(hex, rgb) {
   return rgb.reduce(

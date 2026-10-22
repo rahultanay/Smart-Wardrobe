@@ -7,6 +7,8 @@ import {
   stylesForCategory,
   itemStyles,
 } from "../lib/wardrobe.js";
+import ClothingDetails from "./ClothingDetails.jsx";
+import { suggestedStyles, typesFor } from "../lib/clothing-details.js";
 import Modal from "./Modal.jsx";
 import Icon from "./Icon.jsx";
 const emptyItem = {
@@ -34,6 +36,7 @@ export default function ItemForm({
           occasions: item.occasions,
           photo: item.photo,
           styles: itemStyles(item),
+          details: item.details || {},
         }
       : {
           ...emptyItem,
@@ -50,7 +53,11 @@ export default function ItemForm({
     setError("");
     try {
       const result = await photoData(file);
-      setForm((f) => ({ ...f, ...result }));
+      setForm((f) => ({
+        ...f,
+        ...result,
+        details: { ...f.details, ...result.details },
+      }));
       setPhotoNote(
         "Color estimated from the center of your photo. Please confirm it below.",
       );
@@ -129,6 +136,7 @@ export default function ItemForm({
                 setForm((f) => ({
                   ...f,
                   category,
+                  details: { ...f.details, garmentType: typesFor(category)[0] },
                   styles: styles.length
                     ? styles
                     : [options.includes("Casual") ? "Casual" : options[0]],
@@ -152,6 +160,13 @@ export default function ItemForm({
             </select>
           </label>
         </div>
+        <ClothingDetails
+          category={form.category}
+          details={form.details || {}}
+          onChange={(details, styles) =>
+            setForm((f) => ({ ...f, details, ...(styles ? { styles } : {}) }))
+          }
+        />
         <fieldset>
           <legend>Dress styles</legend>
           <div className="check-options">

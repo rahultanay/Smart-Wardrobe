@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import ClothingDetails from "./ClothingDetails.jsx";
+import { suggestedStyles, typesFor } from "../lib/clothing-details.js";
+import {
+  CATEGORIES,
+  stylesForCategory as styleOptions,
+} from "../lib/wardrobe.js";
 import Modal from "./Modal.jsx";
 import { COLORS, photoData, stylesForCategory } from "../lib/wardrobe.js";
 import {
@@ -70,7 +76,12 @@ export default function BulkImport({ onClose, onSave }) {
   }
   function resize(piece, box) {
     const region = { ...piece, box: clampBox(box), mask: null };
-    update(piece.id, { ...region, ...cropPhoto(source.current, region) });
+    const crop = cropPhoto(source.current, region);
+    update(piece.id, {
+      ...region,
+      ...crop,
+      details: { ...piece.details, ...crop.details },
+    });
   }
   function point(e) {
     const r = e.currentTarget.getBoundingClientRect();
@@ -87,10 +98,20 @@ export default function BulkImport({ onClose, onSave }) {
       included: true,
       name: "",
       rotation: 0,
+      category,
+      styles: suggestedStyles(category),
+      details: { fit: "Unknown", garmentType: typesFor(category)[0] },
     };
     setPieces((all) => [
       ...all,
-      { ...region, ...cropPhoto(source.current, region) },
+      {
+        ...region,
+        ...cropPhoto(source.current, region),
+        details: {
+          ...region.details,
+          ...cropPhoto(source.current, region).details,
+        },
+      },
     ]);
     setSelected(region.id);
     setDraw(false);
@@ -122,11 +143,15 @@ export default function BulkImport({ onClose, onSave }) {
         body: {
           requestId: crypto.randomUUID(),
           items: chosen.map((p) => ({
-            name: p.name.trim() || `${p.color} ${category.toLowerCase()}`,
-            category,
+            name:
+              p.name.trim() ||
+              `${p.details?.shade || p.color} ${(p.category || category).toLowerCase()}`,
+            category: p.category || category,
+            details: p.details,
             color: p.color,
             pattern: "Solid",
-            styles: [...styles],
+            styles:
+              p.styles || suggestedStyles(p.category || category, p.details),
             occasions: ["Everyday"],
             photo: p.photo,
           })),
@@ -211,8 +236,8 @@ export default function BulkImport({ onClose, onSave }) {
             ))}
           </div>
           <p className="hint">
-            Use one clothing category per photo (up to 24 pieces). Leave space
-            between pieces on a plain background for better results.
+            This is the default for new boxes. Each box can have its own
+            category, garment type, fit, and dress styles.
           </p>
         </fieldset>
         {!photo && (
@@ -388,6 +413,36 @@ export default function BulkImport({ onClose, onSave }) {
                   </button>
                   <span>{current.rotation || 0}°</span>
                 </div>
+                <div className="bulk-toolbar">
+                  <button type="button" onClick={() => rotate(current, -1)}>
+                    −1°
+                  </button>
+                  <button type="button" onClick={() => rotate(current, 1)}>
+                    +1°
+                  </button>
+                  <button type="button" onClick={() => rotate(current, -5)}>
+                    −5°
+                  </button>
+                  <button type="button" onClick={() => rotate(current, 5)}>
+                    +5°
+                  </button>
+                  <label>
+                    Rotation (degrees)
+                    <input
+                      type="number"
+                      step="1"
+                      min="-360"
+                      max="360"
+                      value={current.rotation || 0}
+                      onChange={(e) =>
+                        rotate(
+                          current,
+                          Number(e.target.value) - (current.rotation || 0),
+                        )
+                      }
+                    />
+                  </label>
+                </div>
                 <div className="bulk-coordinates">
                   {[
                     ["x", "Left"],
@@ -449,6 +504,59 @@ export default function BulkImport({ onClose, onSave }) {
                     Include piece {n + 1}
                   </label>
                   <label>
+                    Category
+                    <select
+                      disabled={busy || locked || p.saved}
+                      value={p.category || category}
+                      onChange={(e) => {
+                        const cat = e.target.value;
+                        const details = {
+                          ...p.details,
+                          garmentType: typesFor(cat)[0],
+                        };
+                        update(p.id, {
+                          category: cat,
+                          details,
+                          styles: suggestedStyles(cat, details),
+                        });
+                      }}
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <ClothingDetails
+                    category={p.category || category}
+                    details={p.details}
+                    disabled={busy || locked || p.saved}
+                    onChange={(details, nextStyles) =>
+                      update(p.id, {
+                        details,
+                        ...(nextStyles ? { styles: nextStyles } : {}),
+                      })
+                    }
+                  />
+                  <fieldset disabled={busy || locked || p.saved}>
+                    <legend>Dress styles</legend>
+                    {styleOptions(p.category || category).map((s) => (
+                      <label key={s}>
+                        <input
+                          type="checkbox"
+                          checked={(p.styles || []).includes(s)}
+                          onChange={(e) =>
+                            update(p.id, {
+                              styles: e.target.checked
+                                ? [...(p.styles || []), s]
+                                : (p.styles || []).filter((x) => x !== s),
+                            })
+                          }
+                        />
+                        {s}
+                      </label>
+                    ))}
+                  </fieldset>
+                  <label>
                     Color
                     <select
                       disabled={busy || locked || p.saved}
@@ -491,7 +599,7 @@ export default function BulkImport({ onClose, onSave }) {
                   <button
                     type="button"
                     className="button primary"
-                    disabled={busy || locked || p.saved || !styles.length}
+                    disabled={busy || locked || p.saved || !p.styles?.length}
                     onClick={() => save([p.id])}
                   >
                     {p.saved ? "Saved ✓" : "Save this piece"}
@@ -499,43 +607,23 @@ export default function BulkImport({ onClose, onSave }) {
                 </article>
               ))}
             </div>
-            {!!pieces.length && (
-              <fieldset disabled={busy || locked}>
-                <legend>Dress styles for this batch</legend>
-                <div className="check-options">
-                  {stylesForCategory(category).map((s) => (
-                    <label key={s}>
-                      <input
-                        type="checkbox"
-                        checked={styles.includes(s)}
-                        onChange={(e) =>
-                          setStyles((all) =>
-                            e.target.checked
-                              ? [...all, s]
-                              : all.filter((v) => v !== s),
-                          )
-                        }
-                      />
-                      {s}
-                    </label>
-                  ))}
-                </div>
-                <p className="hint">
-                  Colors are estimates: confirm them above. These items will be
-                  available for Everyday occasions. Edit individual style and
-                  occasion tags in My wardrobe later.
-                </p>
-              </fieldset>
-            )}
             <button
               type="button"
               className="button primary full"
               disabled={
-                busy || saving || (!locked && (!count || !styles.length))
+                busy ||
+                saving ||
+                (!locked &&
+                  (!count ||
+                    pieces.some(
+                      (p) => p.included && !p.saved && !p.styles?.length,
+                    )))
               }
               onClick={() =>
                 save(
-                  pieces.filter((p) => p.included && !p.saved).map((p) => p.id),
+                  pieces
+                    .filter((p) => p.included && !p.saved && p.styles?.length)
+                    .map((p) => p.id),
                 )
               }
             >

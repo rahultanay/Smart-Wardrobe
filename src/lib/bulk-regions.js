@@ -88,10 +88,17 @@ export function transformBox(box, dx, dy, handle = "move") {
   return { x: left, y: top, w: right - left, h: bottom - top };
 }
 export function rotationLayout(width, height, degrees = 0) {
-  const angle = (((Math.round(degrees / 90) * 90) % 360) + 360) % 360;
+  const angle = (((Number(degrees) || 0) % 360) + 360) % 360;
+  const radians = (angle * Math.PI) / 180;
   return {
     angle,
-    width: angle % 180 ? height : width,
-    height: angle % 180 ? width : height,
+    width: Math.round(
+      Math.abs(width * Math.cos(radians)) +
+        Math.abs(height * Math.sin(radians)),
+    ),
+    height: Math.round(
+      Math.abs(width * Math.sin(radians)) +
+        Math.abs(height * Math.cos(radians)),
+    ),
   };
 }

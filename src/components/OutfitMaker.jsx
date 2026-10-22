@@ -183,7 +183,7 @@ export default function OutfitMaker({
                   <span className="eyebrow">
                     {anchor === i.id ? "YOUR SELECTED PIECE" : i.category}
                   </span>
-                  <h3>{i.name}</h3>
+                  <h3>{i.name}</h3><p className="hint">{i.details?.shade||i.color} · {i.details?.fit||"Unknown"} fit</p>
                   <p>
                     {lastWear(history, i.id)
                       ? `${ago(lastWear(history, i.id).wornAt)} · ${lastWear(history, i.id).occasion}`
@@ -312,7 +312,7 @@ export default function OutfitMaker({
                 <span>
                   {i.name}
                   <small>
-                    {i.category} · {i.color}
+                    {i.category} · {i.details?.shade||i.color} · {i.details?.fit||"Unknown"} fit
                   </small>
                 </span>
                 {anchor === i.id ? (

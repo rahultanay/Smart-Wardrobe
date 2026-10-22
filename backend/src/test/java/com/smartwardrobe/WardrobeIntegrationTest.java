@@ -167,4 +167,13 @@ class WardrobeIntegrationTest {
             assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM bulk_import",Integer.class));
         } finally {db.execute("ALTER TABLE wardrobe_item DROP CONSTRAINT test_bulk_failure");}
     }
+
+ @Test void garmentDetailsPersistThroughEditsAndBackupRestore() throws Exception {
+  var data=input("Dark blue jeans","Pants");data.put("details",Map.of("fit","Slim","garmentType","Jeans","shade","Dark blue","hex","#344565"));
+  String id=json.readTree(mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(data))).andExpect(status().isCreated()).andExpect(jsonPath("$.details.fit").value("Slim")).andReturn().getResponse().getContentAsString()).get("id").asText();
+  mvc.perform(put("/api/items/"+id).contentType("application/json").content(json.writeValueAsString(data))).andExpect(status().isOk()).andExpect(jsonPath("$.details.shade").value("Dark blue"));
+  String backup=mvc.perform(get("/api/backup")).andReturn().getResponse().getContentAsString();db.update("DELETE FROM wardrobe_item");
+  mvc.perform(post("/api/restore").contentType("application/json").content(backup)).andExpect(status().isOk());
+  mvc.perform(get("/api/items")).andExpect(jsonPath("$[0].details.fit").value("Slim")).andExpect(jsonPath("$[0].details.hex").value("#344565"));
+ }
 }
