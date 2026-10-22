@@ -64,3 +64,34 @@ export function detectionRegions(detections, width, height) {
   }
   return chosen.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
 }
+
+// Normalized coordinates keep mouse and touch gestures independent of display size.
+export function transformBox(box, dx, dy, handle = "move") {
+  if (handle === "move")
+    return {
+      ...box,
+      x: Math.max(0, Math.min(1 - box.w, box.x + dx)),
+      y: Math.max(0, Math.min(1 - box.h, box.y + dy)),
+    };
+  let left = box.x,
+    top = box.y,
+    right = box.x + box.w,
+    bottom = box.y + box.h;
+  if (handle.includes("w"))
+    left = Math.max(0, Math.min(right - 0.02, left + dx));
+  if (handle.includes("e"))
+    right = Math.min(1, Math.max(left + 0.02, right + dx));
+  if (handle.includes("n"))
+    top = Math.max(0, Math.min(bottom - 0.02, top + dy));
+  if (handle.includes("s"))
+    bottom = Math.min(1, Math.max(top + 0.02, bottom + dy));
+  return { x: left, y: top, w: right - left, h: bottom - top };
+}
+export function rotationLayout(width, height, degrees = 0) {
+  const angle = (((Math.round(degrees / 90) * 90) % 360) + 360) % 360;
+  return {
+    angle,
+    width: angle % 180 ? height : width,
+    height: angle % 180 ? width : height,
+  };
+}

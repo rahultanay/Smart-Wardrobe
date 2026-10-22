@@ -2093,3 +2093,54 @@ dialog:has(.bulk-import) {
 .bulk-canvas.drawing .bulk-box {
   pointer-events: none;
 }
+
+/* Manual crop controls support both mouse and touch. */
+.bulk-canvas {
+  touch-action: none;
+}
+.bulk-box {
+  cursor: move;
+  touch-action: none;
+}
+.crop-handle {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: #ffcd60;
+  border: 2px solid #33442b;
+  border-radius: 50%;
+  z-index: 3;
+}
+.crop-handle.nw {
+  top: -10px;
+  left: -10px;
+  cursor: nwse-resize;
+}
+.crop-handle.ne {
+  top: -10px;
+  right: -10px;
+  cursor: nesw-resize;
+}
+.crop-handle.sw {
+  bottom: -10px;
+  left: -10px;
+  cursor: nesw-resize;
+}
+.crop-handle.se {
+  bottom: -10px;
+  right: -10px;
+  cursor: nwse-resize;
+}
+.bulk-editor .bulk-toolbar {
+  margin-bottom: 14px;
+}
+.bulk-previews article:has(button:disabled) {
+  opacity: 1;
+}
+.bulk-previews .bulk-toolbar button {
+  border: 1px solid #d7d9cd;
+  background: white;
+  padding: 8px;
+  border-radius: 7px;
+  cursor: pointer;
+}

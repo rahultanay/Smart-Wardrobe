@@ -28,13 +28,15 @@ Clothing labels are optional and default to the color and category. Pattern is n
 
 ## Import clothes from one group photo
 
-1. Choose **Import group photo** and select Jeans / pants, Shirts, T-shirts, Hoodies, Traditional wear, or Shoes. The category you choose is used for all items in the batch; the app does not decide it for you. Traditional wear currently means tops such as kurtas, matching the outfit maker's top-and-pants structure.
-2. Select one JPEG, PNG, or WebP photo under 15 MB. The browser prepares a copy up to 2000 pixels wide/high; the original file is untouched.
-3. The local clothing finder proposes individual rectangles. First use needs internet to download the pinned Grounding DINO Tiny model (about 204 MB) from Hugging Face. The model is browser-cached when supported. Your image is processed in a worker on your device and is not transmitted to Hugging Face or another AI service. Slow or memory-limited devices can use the manual box controls.
-4. Review the numbered boxes and previews. Exclude unwanted detections, edit color estimates and optional labels, and select dress styles. **Draw a missing piece** lets you drag a new rectangle; **Add adjustable box** and the Left/Top/Width/Height fields also work without dragging. Adjusted crops recalculate their color estimate. A rectangular crop may include background or neighboring fabric; lay pieces apart for the cleanest results.
-5. Save the reviewed batch (1–24 items). Each crop becomes a separate wardrobe item, ready for outfit matching. The batch uses one database transaction and an import identifier: a failed request can be retried without duplicating the same batch. Re-uploading the same photo as a new import is intentionally a new batch; visual duplicate detection is not included.
+Manual selection is now the default and requires no model download or scan.
 
-Color estimates are editable, and style tags apply to the whole batch; edit individual items afterward when needed. New items default to Everyday occasion eligibility. The importer does not automatically mark clothes worn or put them in laundry.
+1. Choose Import group photo, select the category, and open your photo.
+2. Click Add box. Drag it over a garment and resize with its corner handles. Draw a box and numeric bounds are also available.
+3. Rotate left or right to turn the individual crop in 90-degree steps. Confirm its color and optional label.
+4. Click Save this piece, then continue with another box from the same photo. Saved boxes are marked and cannot be saved twice. Save all selected pieces is also available.
+5. Click Done when finished. Saved clothes remain in My wardrobe; unsaved boxes are discarded when closing.
+
+Failed saves retain their request identifier for a safe retry. The earlier automatic model source is preserved but is not loaded by this flow or bundled into the active interface.
 
 ## Use your wardrobe
 

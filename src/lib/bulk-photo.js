@@ -1,5 +1,5 @@
 import { COLORS } from "./wardrobe.js";
-import { clampBox } from "./bulk-regions.js";
+import { clampBox, rotationLayout } from "./bulk-regions.js";
 export async function loadPhoto(photo) {
   const image = new Image();
   image.src = photo;
@@ -64,7 +64,17 @@ export function cropPhoto(image, region) {
     (a, b) => distance(a[1], rgb) - distance(b[1], rgb),
   )[0][0];
   // Keep the real rectangular crop: no generated pixels or reconstructed hidden fabric.
-  return { photo: canvas.toDataURL("image/jpeg", 0.85), color };
+  const layout = rotationLayout(canvas.width, canvas.height, region.rotation);
+  if (!layout.angle)
+    return { photo: canvas.toDataURL("image/jpeg", 0.85), color };
+  const rotated = document.createElement("canvas");
+  rotated.width = layout.width;
+  rotated.height = layout.height;
+  const rotatedContext = rotated.getContext("2d");
+  rotatedContext.translate(rotated.width / 2, rotated.height / 2);
+  rotatedContext.rotate((layout.angle * Math.PI) / 180);
+  rotatedContext.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+  return { photo: rotated.toDataURL("image/jpeg", 0.85), color };
 }
 function distance(hex, rgb) {
   return rgb.reduce(

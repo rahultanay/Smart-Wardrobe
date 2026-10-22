@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal.jsx";
 import { COLORS, photoData, stylesForCategory } from "../lib/wardrobe.js";
-import { MAX_PIECES, boxFromPoints, clampBox } from "../lib/bulk-regions.js";
+import {
+  MAX_PIECES,
+  boxFromPoints,
+  clampBox,
+  transformBox,
+} from "../lib/bulk-regions.js";
 import { loadPhoto, cropPhoto } from "../lib/bulk-photo.js";
 const groups = [
   ["Jeans / pants", "Pants"],
@@ -24,8 +29,8 @@ export default function BulkImport({ onClose, onSave }) {
   const [draw, setDraw] = useState(false),
     [draft, setDraft] = useState(null),
     [locked, setLocked] = useState(false);
-  const worker = useRef(),
-    source = useRef(),
+  const source = useRef(),
+    canvas = useRef(),
     start = useRef(),
     request = useRef(),
     operation = useRef(0),
@@ -34,65 +39,8 @@ export default function BulkImport({ onClose, onSave }) {
     alive.current = true;
     return () => {
       alive.current = false;
-      worker.current?.terminate();
     };
   }, []);
-  function stop() {
-    operation.current++;
-    worker.current?.terminate();
-    worker.current = null;
-    setBusy(false);
-    setStatus("Automatic selection stopped. You can draw your own boxes.");
-  }
-  function analyze(value) {
-    worker.current?.terminate();
-    setBusy(true);
-    setError("");
-    setStatus("Starting automatic selection…");
-    const w = new Worker(
-      new URL("../workers/clothing.worker.js", import.meta.url),
-      { type: "module" },
-    );
-    worker.current = w;
-    w.onmessage = ({ data }) => {
-      if (worker.current !== w || !alive.current) return;
-      if (data.type === "progress") setStatus(data.message);
-      if (data.type === "error") {
-        setError(data.message);
-        setBusy(false);
-        w.terminate();
-        worker.current = null;
-      }
-      if (data.type === "result") {
-        const next = data.regions.map((r) => ({
-          ...r,
-          ...cropPhoto(source.current, r),
-          id: crypto.randomUUID(),
-          included: true,
-          name: "",
-        }));
-        setPieces(next);
-        setSelected(next[0]?.id || null);
-        setBusy(false);
-        setStatus(
-          next.length
-            ? `${next.length} possible pieces found. Check every crop before adding.`
-            : "No separate pieces found. Draw a box around each piece below.",
-        );
-        w.terminate();
-        worker.current = null;
-      }
-    };
-    w.onerror = () => {
-      setError(
-        "Automatic selection is unavailable in this browser. You can draw boxes around the clothes instead.",
-      );
-      setBusy(false);
-      w.terminate();
-      worker.current = null;
-    };
-    w.postMessage({ photo: value, category });
-  }
   async function upload(file) {
     const job = ++operation.current;
     setBusy(true);
@@ -106,7 +54,10 @@ export default function BulkImport({ onClose, onSave }) {
       if (!alive.current || job !== operation.current) return;
       source.current = image;
       setPhoto(result.photo);
-      analyze(result.photo);
+      setBusy(false);
+      setStatus(
+        "Photo ready. Add a box, then drag it around a piece of clothing.",
+      );
     } catch (e) {
       if (alive.current && job === operation.current) {
         setError(e.message);
@@ -135,6 +86,7 @@ export default function BulkImport({ onClose, onSave }) {
       id: crypto.randomUUID(),
       included: true,
       name: "",
+      rotation: 0,
     };
     setPieces((all) => [
       ...all,
@@ -143,43 +95,100 @@ export default function BulkImport({ onClose, onSave }) {
     setSelected(region.id);
     setDraw(false);
   }
-  async function save() {
+  function rotate(piece, degrees) {
+    const region = {
+      ...piece,
+      rotation: ((piece.rotation || 0) + degrees + 360) % 360,
+    };
+    update(piece.id, {
+      ...region,
+      photo: cropPhoto(source.current, region).photo,
+    });
+  }
+  async function save(ids) {
+    if (saving) return;
     setSaving(true);
     setLocked(true);
     setError("");
-    if (!request.current)
+    if (!request.current) {
+      const chosen = pieces.filter((p) => !p.saved && ids.includes(p.id));
+      if (!chosen.length) {
+        setSaving(false);
+        setLocked(false);
+        return;
+      }
       request.current = {
-        requestId: crypto.randomUUID(),
-        items: pieces
-          .filter((p) => p.included)
-          .map((p) => ({
+        ids: chosen.map((p) => p.id),
+        body: {
+          requestId: crypto.randomUUID(),
+          items: chosen.map((p) => ({
             name: p.name.trim() || `${p.color} ${category.toLowerCase()}`,
             category,
             color: p.color,
             pattern: "Solid",
-            styles,
+            styles: [...styles],
             occasions: ["Everyday"],
             photo: p.photo,
           })),
+        },
       };
+    }
     try {
-      await onSave(request.current);
-      onClose();
+      await onSave(request.current.body);
+      const savedIds = request.current.ids;
+      setPieces((all) =>
+        all.map((p) =>
+          savedIds.includes(p.id) ? { ...p, saved: true, included: false } : p,
+        ),
+      );
+      setStatus(
+        `${savedIds.length} ${savedIds.length === 1 ? "piece saved" : "pieces saved"}. Add another box or finish when you’re done.`,
+      );
+      request.current = null;
+      setLocked(false);
+      setSaving(false);
     } catch (e) {
       setError(
-        `${e.message} Your reviewed selection is kept. Retry saving the same batch safely.`,
+        `${e.message} Retry this save below; the same pieces will not be added twice.`,
       );
       setSaving(false);
     }
   }
+  function endGesture(e, cancel = false) {
+    const gesture = start.current;
+    if (!gesture) return;
+    start.current = null;
+    setDraft(null);
+    if (gesture.id) {
+      const piece = pieces.find((p) => p.id === gesture.id);
+      resize(
+        piece,
+        cancel
+          ? gesture.box
+          : transformBox(
+              gesture.box,
+              point(e).x - gesture.point.x,
+              point(e).y - gesture.point.y,
+              gesture.handle,
+            ),
+      );
+    } else if (!cancel) {
+      const end = point(e);
+      if (
+        Math.abs(end.x - gesture.point.x) > 0.02 &&
+        Math.abs(end.y - gesture.point.y) > 0.02
+      )
+        addBox(boxFromPoints(gesture.point, end));
+    }
+  }
   const current = pieces.find((p) => p.id === selected),
-    count = pieces.filter((p) => p.included).length;
+    count = pieces.filter((p) => p.included && !p.saved).length;
   return (
     <Modal title="Import a group photo" onClose={() => !saving && onClose()}>
       <div className="bulk-import">
         <p>
-          One photo, several pieces. Choose what you’re importing, then review
-          the individual crops.
+          One photo, several pieces. Add a box around each garment, rotate its
+          preview if needed, and save it individually.
         </p>
         <fieldset disabled={busy || saving || locked}>
           <legend>What’s in this photo?</legend>
@@ -223,20 +232,15 @@ export default function BulkImport({ onClose, onSave }) {
           </label>
         )}
         <p className="hint">
-          Automatic selection runs on your device. First use downloads the image
-          model (about 204 MB plus its runtime); photos are not sent to an AI
-          service. Clothes that touch or overlap may need separate boxes.
+          Manual selection opens as soon as your photo is ready. No model
+          download or automatic scan.
         </p>
         {status && (
           <p className="bulk-status" role="status">
             {status}
           </p>
         )}
-        {busy && (
-          <button className="button outline" onClick={stop}>
-            Stop automatic selection
-          </button>
-        )}
+        {busy && <p role="status">Opening your photo…</p>}
         {error && (
           <p className="form-error" role="alert">
             {error}
@@ -255,7 +259,7 @@ export default function BulkImport({ onClose, onSave }) {
                 }}
                 aria-pressed={draw}
               >
-                {draw ? "Cancel drawing" : "Draw a missing piece"}
+                {draw ? "Cancel drawing" : "Draw a box"}
               </button>
               <button
                 type="button"
@@ -263,50 +267,54 @@ export default function BulkImport({ onClose, onSave }) {
                 disabled={busy || locked || pieces.length >= MAX_PIECES}
                 onClick={() => addBox({ x: 0.25, y: 0.25, w: 0.3, h: 0.4 })}
               >
-                Add adjustable box
-              </button>
-              <button
-                type="button"
-                className="text-button"
-                disabled={busy || locked}
-                onClick={() => analyze(photo)}
-              >
-                Replace with new selections
+                Add box
               </button>
             </div>
             <p className="hint">
               {draw
                 ? "Drag across a piece to draw its crop."
-                : "Select a numbered box or a preview to adjust its edges below. Exclude background objects and duplicate selections."}
+                : "Drag a box to move it. Drag its corner handles to resize it. Rotation changes only that piece’s saved photo."}
             </p>
             <div
               className={`bulk-canvas ${draw ? "drawing" : ""}`}
+              ref={canvas}
               onPointerDown={(e) => {
-                if (!draw || busy || locked) return;
-                start.current = point(e);
+                if (busy || locked) return;
+                const node = e.target.closest("[data-piece]");
+                if (draw) {
+                  start.current = { point: point(e) };
+                  setDraft(boxFromPoints(point(e), point(e)));
+                } else if (node) {
+                  const piece = pieces.find((p) => p.id === node.dataset.piece);
+                  if (!piece || piece.saved) return;
+                  setSelected(piece.id);
+                  start.current = {
+                    id: piece.id,
+                    box: { ...piece.box },
+                    point: point(e),
+                    handle: e.target.dataset.handle || "move",
+                  };
+                } else return;
+                e.preventDefault();
                 e.currentTarget.setPointerCapture(e.pointerId);
-                setDraft(boxFromPoints(start.current, start.current));
               }}
               onPointerMove={(e) => {
-                if (start.current)
-                  setDraft(boxFromPoints(start.current, point(e)));
+                const gesture = start.current;
+                if (!gesture) return;
+                const pos = point(e);
+                if (gesture.id)
+                  update(gesture.id, {
+                    box: transformBox(
+                      gesture.box,
+                      pos.x - gesture.point.x,
+                      pos.y - gesture.point.y,
+                      gesture.handle,
+                    ),
+                  });
+                else setDraft(boxFromPoints(gesture.point, pos));
               }}
-              onPointerUp={(e) => {
-                if (!start.current) return;
-                const end = point(e),
-                  begin = start.current;
-                start.current = null;
-                setDraft(null);
-                if (
-                  Math.abs(end.x - begin.x) > 0.02 &&
-                  Math.abs(end.y - begin.y) > 0.02
-                )
-                  addBox(boxFromPoints(begin, end));
-              }}
-              onPointerCancel={() => {
-                start.current = null;
-                setDraft(null);
-              }}
+              onPointerUp={(e) => endGesture(e)}
+              onPointerCancel={(e) => endGesture(e, true)}
             >
               <img
                 src={photo}
@@ -317,7 +325,8 @@ export default function BulkImport({ onClose, onSave }) {
                 <button
                   type="button"
                   key={p.id}
-                  disabled={draw || busy || locked}
+                  disabled={draw || busy || locked || p.saved}
+                  data-piece={p.id}
                   aria-label={`Select piece ${n + 1}`}
                   className={`bulk-box ${selected === p.id ? "active" : ""} ${p.included ? "" : "excluded"}`}
                   style={{
@@ -328,7 +337,19 @@ export default function BulkImport({ onClose, onSave }) {
                   }}
                   onClick={() => setSelected(p.id)}
                 >
-                  <span>{n + 1}</span>
+                  <span>
+                    {n + 1}
+                    {p.saved ? " ✓" : ""}
+                  </span>
+                  {!p.saved &&
+                    selected === p.id &&
+                    ["nw", "ne", "sw", "se"].map((corner) => (
+                      <i
+                        key={corner}
+                        data-handle={corner}
+                        className={`crop-handle ${corner}`}
+                      />
+                    ))}
                 </button>
               ))}
               {draft && (
@@ -345,8 +366,28 @@ export default function BulkImport({ onClose, onSave }) {
               )}
             </div>
             {current && (
-              <fieldset disabled={busy || locked} className="bulk-editor">
+              <fieldset
+                disabled={busy || locked || current.saved}
+                className="bulk-editor"
+              >
                 <legend>Adjust piece {pieces.indexOf(current) + 1}</legend>
+                <div className="bulk-toolbar">
+                  <button
+                    type="button"
+                    className="button outline"
+                    onClick={() => rotate(current, -90)}
+                  >
+                    Rotate left ↶
+                  </button>
+                  <button
+                    type="button"
+                    className="button outline"
+                    onClick={() => rotate(current, 90)}
+                  >
+                    Rotate right ↷
+                  </button>
+                  <span>{current.rotation || 0}°</span>
+                </div>
                 <div className="bulk-coordinates">
                   {[
                     ["x", "Left"],
@@ -391,7 +432,7 @@ export default function BulkImport({ onClose, onSave }) {
                     type="button"
                     className="bulk-preview-image"
                     onClick={() => setSelected(p.id)}
-                    disabled={busy || locked}
+                    disabled={busy || locked || p.saved}
                     aria-label={`Adjust crop ${n + 1}`}
                   >
                     <img src={p.photo} alt={`Clothing crop ${n + 1}`} />
@@ -399,7 +440,7 @@ export default function BulkImport({ onClose, onSave }) {
                   <label>
                     <input
                       type="checkbox"
-                      disabled={busy || locked}
+                      disabled={busy || locked || p.saved}
                       checked={p.included}
                       onChange={(e) =>
                         update(p.id, { included: e.target.checked })
@@ -410,7 +451,7 @@ export default function BulkImport({ onClose, onSave }) {
                   <label>
                     Color
                     <select
-                      disabled={busy || locked}
+                      disabled={busy || locked || p.saved}
                       value={p.color}
                       onChange={(e) => update(p.id, { color: e.target.value })}
                     >
@@ -422,13 +463,39 @@ export default function BulkImport({ onClose, onSave }) {
                   <label>
                     Label (optional)
                     <input
-                      disabled={busy || locked}
+                      disabled={busy || locked || p.saved}
                       maxLength="80"
                       placeholder={`${p.color} ${category.toLowerCase()}`}
                       value={p.name}
                       onChange={(e) => update(p.id, { name: e.target.value })}
                     />
                   </label>
+                  <div className="bulk-toolbar">
+                    <button
+                      type="button"
+                      disabled={busy || locked || p.saved}
+                      onClick={() => rotate(p, -90)}
+                      aria-label={`Rotate piece ${n + 1} left`}
+                    >
+                      ↶ Rotate
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || locked || p.saved}
+                      onClick={() => rotate(p, 90)}
+                      aria-label={`Rotate piece ${n + 1} right`}
+                    >
+                      Rotate ↷
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="button primary"
+                    disabled={busy || locked || p.saved || !styles.length}
+                    onClick={() => save([p.id])}
+                  >
+                    {p.saved ? "Saved ✓" : "Save this piece"}
+                  </button>
                 </article>
               ))}
             </div>
@@ -463,21 +530,35 @@ export default function BulkImport({ onClose, onSave }) {
             <button
               type="button"
               className="button primary full"
-              disabled={busy || saving || !count || !styles.length}
-              onClick={save}
+              disabled={
+                busy || saving || (!locked && (!count || !styles.length))
+              }
+              onClick={() =>
+                save(
+                  pieces.filter((p) => p.included && !p.saved).map((p) => p.id),
+                )
+              }
             >
               {saving
-                ? "Adding your pieces…"
+                ? "Saving…"
                 : locked
-                  ? "Retry saving this batch"
-                  : `Add ${count} ${count === 1 ? "piece" : "pieces"} to my wardrobe`}
+                  ? "Retry this save"
+                  : `Save all ${count} selected pieces`}
             </button>
             {locked && (
               <p className="hint">
-                The selection is locked while confirming this save to prevent
-                duplicate imports. Close and reopen to start a different batch.
+                Retry the pending save before editing more boxes. This prevents
+                duplicates if the connection was interrupted.
               </p>
             )}
+            <button
+              type="button"
+              className="button outline full"
+              disabled={saving}
+              onClick={onClose}
+            >
+              Done
+            </button>
           </>
         )}
       </div>

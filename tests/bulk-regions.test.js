@@ -62,3 +62,45 @@ test("caps proposals to prevent unbounded imports", () => {
   );
   assert.equal(detectionRegions(boxes, 600, 500).length, MAX_PIECES);
 });
+
+// Moving must preserve dimensions at every edge; resizing cannot invert a box.
+test("dragging boxes preserves their size and stays within the photo", async () => {
+  const { transformBox } = await import("../src/lib/bulk-regions.js");
+  const box = { x: 0.2, y: 0.2, w: 0.3, h: 0.4 };
+  assert.deepEqual(transformBox(box, 2, 2), { x: 0.7, y: 0.6, w: 0.3, h: 0.4 });
+  assert.deepEqual(transformBox(box, -2, -2), { x: 0, y: 0, w: 0.3, h: 0.4 });
+  for (const handle of ["nw", "ne", "sw", "se"]) {
+    const b = transformBox(box, 2, -2, handle);
+    assert.ok(
+      b.w >= 0.019999 &&
+        b.h >= 0.019999 &&
+        b.x >= 0 &&
+        b.y >= 0 &&
+        b.x + b.w <= 1.000001 &&
+        b.y + b.h <= 1.000001,
+    );
+  }
+});
+test("quarter-turn crop rotation swaps dimensions and wraps correctly", async () => {
+  const { rotationLayout } = await import("../src/lib/bulk-regions.js");
+  assert.deepEqual(rotationLayout(150, 300, 90), {
+    angle: 90,
+    width: 300,
+    height: 150,
+  });
+  assert.deepEqual(rotationLayout(150, 300, -90), {
+    angle: 270,
+    width: 300,
+    height: 150,
+  });
+  assert.deepEqual(rotationLayout(150, 300, 180), {
+    angle: 180,
+    width: 150,
+    height: 300,
+  });
+  assert.deepEqual(rotationLayout(150, 300, 360), {
+    angle: 0,
+    width: 150,
+    height: 300,
+  });
+});
