@@ -80,7 +80,7 @@ export default function BulkImport({ onClose, onSave }) {
     update(piece.id, {
       ...region,
       ...crop,
-      details: { ...piece.details, ...crop.details },
+      details: { ...piece.details, ...crop.details, ...(piece.details?.typeSource === "manual" ? {} : {garmentType:"Unknown",typeSource:""}) },
     });
   }
   function point(e) {
@@ -102,7 +102,7 @@ export default function BulkImport({ onClose, onSave }) {
       styles: suggestedStyles(category),
       details: {
         fit: "Unknown",
-        garmentType: typesFor(category)[0],
+        garmentType: "Unknown",
         styleMode: "auto",
       },
     };
@@ -261,7 +261,7 @@ export default function BulkImport({ onClose, onSave }) {
           </label>
         )}
         <p className="hint">
-          Manual selection opens as soon as your photo is ready. No model
+          Manual selection opens as soon as your photo is ready. No selection model
           download or automatic scan.
         </p>
         {status && (
@@ -516,7 +516,7 @@ export default function BulkImport({ onClose, onSave }) {
                         const cat = e.target.value;
                         const details = {
                           ...p.details,
-                          garmentType: typesFor(cat)[0],
+                          garmentType: "Unknown", typeSource: "",
                         };
                         update(p.id, {
                           category: cat,
@@ -532,6 +532,7 @@ export default function BulkImport({ onClose, onSave }) {
                   </label>
                   <ClothingDetails
                     category={p.category || category}
+                    photo={p.photo}
                     details={p.details}
                     disabled={busy || locked || p.saved}
                     onChange={(details, nextStyles) =>

@@ -269,7 +269,7 @@ export default function OutfitMaker({
                   ? "Add a shirt or T-shirt and pants. Shoes can be added to complete the look."
                   : anchor
                     ? "Your selected piece must be available and suit this dress style and occasion."
-                    : `No ${dressStyle.toLowerCase()} combination for ${occasion.toLowerCase()} yet. ${missing.length ? `Missing suitable ${missing.map((r) => (r === "Top" ? "tops" : "pants")).join(" and ")}.` : ""} Edit “Dress styles” on your existing clothes or add suitable pieces.`}
+                    : `No ${dressStyle.toLowerCase()} combination for ${occasion.toLowerCase()} yet. ${missing.length ? `Missing suitable ${missing.map((r) => (r === "Top" ? "tops" : "pants")).join(" and ")}.` : ""} For Formal, only dress shirts and dress trousers qualify. Check the garment type in Edit; unknown pieces and jeans are excluded.`}
               </p>
               <div className="outfit-controls">
                 <button

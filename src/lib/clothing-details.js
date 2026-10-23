@@ -12,7 +12,7 @@ export function typesFor(category) {
     : category === "Shirt"
       ? ["Unknown", "Dress shirt", "Casual shirt"]
       : category === "T-shirt"
-        ? ["Plain T-shirt", "Graphic T-shirt"]
+        ? ["Unknown", "Plain T-shirt", "Graphic T-shirt"]
         : category === "Shoes"
           ? ["Unknown", "Dress shoes", "Sneakers", "Sandals"]
           : ["Unknown"];
@@ -93,12 +93,18 @@ export function shadeEstimate(rgb, color) {
 export function automaticStyles(item) {
   const type = item.details?.garmentType || "Unknown";
   if (type !== "Unknown") return suggestedStyles(item.category, item.details);
-  if (item.category === "Shirt") return ["Formal", "Semi-formal", "Casual"];
+  if (item.category === "Shirt") return ["Semi-formal", "Casual"];
   if (item.category === "Pants" || item.category === "Shoes")
-    return ["Formal", "Semi-formal", "Casual", "Traditional"];
+    return ["Semi-formal", "Casual", "Traditional"];
   return suggestedStyles(item.category, item.details);
 }
+export function formalEligible(item) {
+  return ({ Pants: "Dress trousers", Shirt: "Dress shirt", Shoes: "Dress shoes" })[item.category] === item.details?.garmentType && ["Pants", "Shirt", "Shoes"].includes(item.category);
+}
 export function effectiveStyles(item) {
+  return unrestrictedStyles(item).filter(style => style !== "Formal" || formalEligible(item));
+}
+function unrestrictedStyles(item) {
   if (item.details?.styleMode === "manual") return item.styles || [];
   if (item.details?.styleMode === "auto") return automaticStyles(item);
   // Legacy explicit multi-style choices are retained; a lone Casual was the old default.

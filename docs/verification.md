@@ -39,3 +39,13 @@ Java 26.0.2.1 was used on this machine; Java 21 remains recommended for Spring B
 - Browser verified the opening style/occasion chooser and Generate outfits button before wardrobe counts. Generated seven formal color-led combinations from the existing 10-item wardrobe without importing or changing personal records.
 - Garment photos are stacked top, pants, then footwear in the featured look and combination cards.
 - Automatic mode uses sampled photo colors plus category and confirmed metadata. It does not classify fabric, collars, denim, or fit visually. Unknown construction is explicitly described as provisional; legacy default Casual tags are inferred as automatic because earlier versions did not record whether they were touched. Users can select manual mode to retain an intentional restriction.
+
+
+## Garment recognition and strict Formal — 23 October 2026
+
+- 30 JavaScript tests and 17 backend integration tests passed, including explicit Formal-tag bypass rejection for jeans, unknown pants and chinos; stale classification and manual-correction preservation.
+- Production build passed; photo inference runs in a separate worker.
+- Tested CLIP on seven crops from the user-provided group photo: all three denim pairs classified as Jeans, four other pairs deferred as Unknown. This is a small functional check, not a general accuracy benchmark.
+- Running browser classified three existing black denim pairs as Jeans and persisted their types. Other uncertain photos were marked image-uncertain; the existing Dress trousers choice was preserved. Formal generation excluded jeans and unknown pieces, reporting the missing dress shirt.
+- First model preparation in the local Node check took 66 seconds; later inference was 59–86 ms per crop in Node. These are not browser timing guarantees. Browser recognition completed successfully on the saved wardrobe.
+- Personal database backed up locally before deployment; originals and wear history preserved.

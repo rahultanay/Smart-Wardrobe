@@ -98,7 +98,7 @@ class WardrobeIntegrationTest {
     @Test void formalDressTagsPersistAndRoundTripInBackups() throws Exception {
         var ids=new ArrayList<String>();
         for(String category:List.of("Shirt","Pants","Shoes")) {
-            var data=input("Formal "+category,category);data.put("styles",List.of("Formal","Semi-formal"));
+            var data=input("Formal "+category,category);data.put("styles",List.of("Formal","Semi-formal"));data.put("details",Map.of("garmentType", category.equals("Shirt")?"Dress shirt":category.equals("Pants")?"Dress trousers":"Dress shoes"));
             var response=mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(data))).andExpect(status().isCreated()).andExpect(jsonPath("$.styles[0]").value("Formal")).andReturn();
             ids.add(json.readTree(response.getResponse().getContentAsString()).get("id").asText());
         }
@@ -178,8 +178,8 @@ class WardrobeIntegrationTest {
  }
 
  @Test void automaticStyleOutfitsCanBeRecordedAndManualChoicesWin() throws Exception {
-  var shirt=input("Auto shirt","Shirt");shirt.put("details",Map.of("styleMode","auto"));
-  var pants=input("Auto pants","Pants");pants.put("details",Map.of("styleMode","auto"));
+  var shirt=input("Auto shirt","Shirt");shirt.put("details",Map.of("styleMode","auto","garmentType","Dress shirt"));
+  var pants=input("Auto pants","Pants");pants.put("details",Map.of("styleMode","auto","garmentType","Dress trousers"));
   String a=json.readTree(mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(shirt))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
   String b=json.readTree(mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(pants))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
   var look=new LinkedHashMap<>(wear(List.of(a,b),"Office",0));look.put("dressStyle","Formal");
@@ -187,5 +187,28 @@ class WardrobeIntegrationTest {
   shirt.put("details",Map.of("styleMode","manual"));shirt.put("styles",List.of("Casual"));
   mvc.perform(put("/api/items/"+a).contentType("application/json").content(json.writeValueAsString(shirt))).andExpect(status().isOk());
   mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(look))).andExpect(status().isBadRequest());
+ }
+
+ @Test void formalRejectsJeansAndUnknownEvenWithManualFormalTag() throws Exception {
+  var shirt=input("Dress shirt","Shirt");shirt.put("details",Map.of("garmentType","Dress shirt"));shirt.put("styles",List.of("Formal"));
+  String a=json.readTree(mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(shirt))).andReturn().getResponse().getContentAsString()).get("id").asText();
+  for(String type:List.of("Jeans","Unknown","Chinos")) {
+   var pants=input(type,"Pants");pants.put("details",Map.of("garmentType",type,"styleMode","manual"));pants.put("styles",List.of("Formal"));
+   String b=json.readTree(mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(pants))).andReturn().getResponse().getContentAsString()).get("id").asText();
+   var look=new LinkedHashMap<>(wear(List.of(a,b),"Office",0));look.put("dressStyle","Formal");
+   mvc.perform(post("/api/history").contentType("application/json").content(json.writeValueAsString(look))).andExpect(status().isBadRequest());
+  }
+ }
+ @Test void classificationPreservesManualCorrectionsAndRejectsStalePhotos() throws Exception {
+  String id=create("Existing pants","Pants").get("id").asText();
+  var body=new LinkedHashMap<String,Object>(Map.of("photo",photo,"category","Pants","previousType","Unknown","garmentType","Jeans","typeSource","image"));
+  body.put("photo","changed");
+  mvc.perform(patch("/api/items/"+id+"/classification").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk()).andExpect(jsonPath("$.details.garmentType").value("Unknown"));
+  body.put("photo",photo);
+  mvc.perform(patch("/api/items/"+id+"/classification").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk()).andExpect(jsonPath("$.details.garmentType").value("Jeans"));
+  var manual=input("Existing pants","Pants");manual.put("details",Map.of("garmentType","Chinos","typeSource","manual"));
+  mvc.perform(put("/api/items/"+id).contentType("application/json").content(json.writeValueAsString(manual))).andExpect(status().isOk());
+  body.put("previousType","Chinos");
+  mvc.perform(patch("/api/items/"+id+"/classification").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk()).andExpect(jsonPath("$.details.garmentType").value("Chinos"));
  }
 }

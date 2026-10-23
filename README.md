@@ -126,3 +126,16 @@ Shade estimates use sampled fabric colors and remain editable because lighting a
 Untouched style tags now use automatic mode: category, photo shade/contrast, garment type and fit determine eligibility and ranking. Explicit manual style selections take precedence. Formal favors neutral colors, light/dark contrast and restrained patterns; semi-formal uses a smart neutral base with softer contrast; casual favors relaxed pieces and flexible palettes. Unknown garment construction produces provisional color-led suggestions, not a claim of image recognition. Confirm Jeans versus Dress trousers to enforce a dress code. Legacy lone Casual defaults are treated as automatic; select manual mode to retain an intentional restriction.
 
 Outfit previews stack the top above pants and shoes, including combination cards. These use original garment photos rather than reconstructing a person wearing them.
+
+
+### Photo-based garment types and strict Formal eligibility
+
+Formal outfits require a Dress shirt and Dress trousers; optional shoes must be Dress shoes. Unknown garments, jeans, chinos, joggers and shorts cannot become Formal through a manual style tag or matching color. This restriction also applies when recording an outfit on the server.
+
+Photo recognition uses CLIP image/text comparisons locally in a browser worker. Single uploads and individual bulk crops are checked after a short debounce. Previously saved items with unknown types are checked sequentially on opening the app. Photos stay on the device; the first use downloads model weights from Hugging Face and can take substantially longer than later runs. Failure or uncertainty leaves the item outside Formal. Existing manually chosen types are preserved. Edit → Garment type corrects a prediction; Check photo again retries recognition.
+
+Predictions are estimates, not guarantees. Conservative score and margin thresholds (with a stricter formal threshold and denim veto) reduce unsafe formal suggestions; scores are similarity scores, not calibrated confidence probabilities. Fit is still user-confirmed. This does not add background removal.
+
+The app uses Semi-formal as its existing smart-casual label, allowing jeans there. Strict event semi-formal dress codes may require a suit. Construction gates run before color ranking: neutral colors do not turn denim into formal trousers.
+
+References: [CLIP model and Transformers.js usage](https://huggingface.co/Xenova/clip-vit-base-patch32), [model limitations](https://huggingface.co/openai/clip-vit-base-patch32), [casual chinos and denim](https://www.brooksbrothers.com/mens/casual-pants).

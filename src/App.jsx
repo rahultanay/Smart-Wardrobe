@@ -1,3 +1,5 @@
+import { detectGarment } from "./lib/garment-detector.js";
+import { GARMENT_LABELS } from "./lib/garment-labels.js";
 import { useEffect, useRef, useState } from "react";
 import {
   CATEGORIES, itemStyles,
@@ -67,6 +69,22 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [notice]);
+  const scanBusy = useRef(false), scanned = useRef(new Set());
+  const [scanTick, setScanTick] = useState(0), [scanStatus, setScanStatus] = useState("");
+  useEffect(() => {
+    if (!connected || pending || modal || scanBusy.current) return;
+    const item = items.find(i => !i.archived && GARMENT_LABELS[i.category] && !i.details?.typeSource && (!i.details?.garmentType || i.details.garmentType === "Unknown") && !scanned.current.has(i.id + i.photo + i.category));
+    if (!item) return;
+    scanBusy.current = true;
+    scanned.current.add(item.id + item.photo + item.category);
+    setScanStatus(`Checking photo: ${item.name}… Unknown garments stay out of Formal.`);
+    detectGarment(item.photo, item.category, setScanStatus).then(async result => {
+      if (!result) return;
+      const updated = await api(`/items/${item.id}/classification`, "PATCH", {photo:item.photo,category:item.category,previousType:item.details?.garmentType || "Unknown",...result});
+      setItems(all => all.map(i => i.id === updated.id ? updated : i));
+      setScanStatus(result.garmentType === "Unknown" ? `${item.name}: photo unclear. Choose its garment type in Edit; it stays out of Formal.` : `${item.name}: detected ${result.garmentType.toLowerCase()}.`);
+    }).catch(e => setScanStatus(e.message)).finally(() => {scanBusy.current = false; setScanTick(t => t+1);});
+  }, [items, connected, pending, modal, scanTick]);
   const active = items.filter((i) => !i.archived),
     available = active.filter((i) => !i.laundry),
     laundry = active.filter((i) => i.laundry);
@@ -495,6 +513,7 @@ function App() {
               collection. Your data stays in the project’s SQL database.
             </p>
           )}
+          {scanStatus && <p role="status" className="hint">{scanStatus}</p>}
           {notice && (
             <div className="toast" role="status">
               <Icon name="check" size={18} />

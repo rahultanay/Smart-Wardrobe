@@ -19,6 +19,7 @@ public class WardrobeController {
     @PostMapping("/items/bulk") @ResponseStatus(HttpStatus.CREATED)
     public List<WardrobeStore.Item> bulk(@RequestBody WardrobeStore.BulkInput input) { return store.createBulk(input); }
     @PutMapping("/items/{id}") public WardrobeStore.Item update(@PathVariable String id,@RequestBody WardrobeStore.ItemInput item) { return store.update(id,item); }
+    @PatchMapping("/items/{id}/classification") public WardrobeStore.Item classify(@PathVariable String id,@RequestBody WardrobeStore.Classification input) { return store.classify(id,input); }
     private boolean value(Flag flag) { if(flag==null || flag.value()==null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"A true or false value is required"); return flag.value(); }
     @PatchMapping("/items/{id}/laundry") public WardrobeStore.Item laundry(@PathVariable String id,@RequestBody Flag flag) { return store.laundry(id,value(flag)); }
     @PatchMapping("/items/{id}/archive") public WardrobeStore.Item archive(@PathVariable String id,@RequestBody Flag flag) { return store.archive(id,value(flag)); }

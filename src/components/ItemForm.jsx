@@ -60,7 +60,7 @@ export default function ItemForm({
       setForm((f) => ({
         ...f,
         ...result,
-        details: { ...f.details, ...result.details },
+        details: { ...f.details, ...result.details, garmentType: "Unknown", typeSource: "" },
       }));
       setPhotoNote(
         "Color estimated from the center of your photo. Please confirm it below.",
@@ -140,7 +140,7 @@ export default function ItemForm({
                 setForm((f) => ({
                   ...f,
                   category,
-                  details: { ...f.details, garmentType: typesFor(category)[0] },
+                  details: { ...f.details, garmentType: "Unknown", typeSource: "" },
                   styles: styles.length
                     ? styles
                     : [options.includes("Casual") ? "Casual" : options[0]],
@@ -166,6 +166,7 @@ export default function ItemForm({
         </div>
         <ClothingDetails
           category={form.category}
+          photo={form.photo}
           details={form.details || {}}
           onChange={(details, styles) =>
             setForm((f) => ({ ...f, details, ...(styles ? { styles } : {}) }))
@@ -186,8 +187,7 @@ export default function ItemForm({
         </label>
         <p className="hint">
           Automatic mode uses photo color and contrast, category, fit and
-          garment type. Unknown construction stays provisional; confirm jeans
-          versus dress trousers for reliable formal looks.
+          garment type. Unknown construction is excluded from Formal. Only dress shirts, dress trousers and dress shoes qualify.
         </p>
         <fieldset>
           <legend>Dress styles (manual override)</legend>

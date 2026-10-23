@@ -27,7 +27,14 @@ public class WardrobeStore {
             default -> true;
         };
     }
+    static boolean formalEligible(Item item) {
+        String required = switch(item.category()) {case "Pants" -> "Dress trousers"; case "Shirt" -> "Dress shirt"; case "Shoes" -> "Dress shoes"; default -> "";};
+        return !required.isEmpty() && required.equals(item.details().get("garmentType"));
+    }
     static List<String> effectiveStyles(Item item) {
+        return unrestrictedStyles(item).stream().filter(style -> !style.equals("Formal") || formalEligible(item)).toList();
+    }
+    static List<String> unrestrictedStyles(Item item) {
         var details=item.details();
         boolean auto="auto".equals(details.get("styleMode")) || (!"manual".equals(details.get("styleMode")) && item.styles().equals(List.of("Casual")));
         if(!auto)return item.styles();
@@ -58,6 +65,21 @@ public class WardrobeStore {
     public List<Item> items() {
         return db.query("SELECT * FROM wardrobe_item ORDER BY created_at DESC", itemMapper);
     }
+    public record Classification(String photo, String category, String previousType, String garmentType, String typeSource) {}
+    @Transactional
+    public Item classify(String id, Classification input) {
+        Item item = find(id);
+        require(input != null, "Missing classification");
+        if (!item.photo().equals(input.photo()) || !item.category().equals(input.category()) || "manual".equals(item.details().get("typeSource")) || !Objects.equals(item.details().getOrDefault("garmentType","Unknown"), input.previousType())) return item;
+        require(Set.of("image","image-uncertain").contains(Objects.toString(input.typeSource(),"")), "Invalid classification source");
+        Set<String> types = switch(item.category()) {case "Pants" -> Set.of("Unknown","Jeans","Dress trousers","Chinos","Joggers","Shorts");case "Shirt" -> Set.of("Unknown","Dress shirt","Casual shirt");case "T-shirt" -> Set.of("Unknown","Plain T-shirt","Graphic T-shirt");case "Shoes" -> Set.of("Unknown","Dress shoes","Sneakers","Sandals");default -> Set.of("Unknown");};
+        require(types.contains(Objects.toString(input.garmentType(),"")), "Invalid garment type");
+        var details = new HashMap<>(item.details());
+        details.put("garmentType", input.garmentType()); details.put("typeSource", input.typeSource());
+        try { db.update("UPDATE wardrobe_item SET details=? WHERE id=?",new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(details), id); }
+        catch(com.fasterxml.jackson.core.JsonProcessingException e) { throw new IllegalArgumentException("Invalid details",e); }
+        return find(id);
+    }
     Item find(String id) {
         return db.query("SELECT * FROM wardrobe_item WHERE id=?",itemMapper,id).stream().findFirst().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Item not found"));
     }
@@ -67,7 +89,7 @@ public class WardrobeStore {
         require(COLORS.contains(Objects.toString(i.color(),"")),"Choose a valid color");
         require(PATTERNS.contains(Objects.toString(i.pattern(),"")),"Choose a valid pattern");
         require(i.occasions()!=null && !i.occasions().isEmpty() && i.occasions().size()<=7 && i.occasions().stream().allMatch(o -> o!=null && OCCASIONS.contains(o)),"Choose at least one valid occasion");
-        require(i.details()==null || (i.details().size()<=5 && i.details().entrySet().stream().allMatch(e -> Set.of("shade","hex","fit","garmentType","styleMode").contains(e.getKey()) && e.getValue()!=null && e.getValue().length()<=60)),"Invalid garment details");
+        require(i.details()==null || (i.details().size()<=6 && i.details().entrySet().stream().allMatch(e -> Set.of("shade","hex","fit","garmentType","styleMode","typeSource").contains(e.getKey()) && e.getValue()!=null && e.getValue().length()<=60)),"Invalid garment details");
         require(i.details()==null || !i.details().containsKey("fit") || Set.of("Unknown","Skinny","Slim","Regular","Relaxed","Oversized").contains(i.details().get("fit")),"Choose a valid fit");
         require(i.details()==null || !i.details().containsKey("hex") || i.details().get("hex").matches("#[A-Fa-f0-9]{6}"),"Invalid shade color");
         var tags=styles(i.styles(),i.category());
