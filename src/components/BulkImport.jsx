@@ -1,3 +1,4 @@
+import AppearanceDetails from "./AppearanceDetails.jsx";
 import { useEffect, useRef, useState } from "react";
 import ClothingDetails from "./ClothingDetails.jsx";
 import { suggestedStyles, typesFor } from "../lib/clothing-details.js";
@@ -80,7 +81,7 @@ export default function BulkImport({ onClose, onSave }) {
     update(piece.id, {
       ...region,
       ...crop,
-      details: { ...piece.details, ...crop.details, ...(piece.details?.typeSource === "manual" ? {} : {garmentType:"Unknown",typeSource:""}) },
+      details: { ...piece.details, ...crop.details, patternSource:"", ...(piece.details?.typeSource === "manual" ? {} : {garmentType:"Unknown",typeSource:""}) },
     });
   }
   function point(e) {
@@ -153,7 +154,7 @@ export default function BulkImport({ onClose, onSave }) {
             category: p.category || category,
             details: p.details,
             color: p.color,
-            pattern: "Solid",
+            pattern: p.pattern || "Unknown",
             styles:
               p.styles || suggestedStyles(p.category || category, p.details),
             occasions: ["Everyday"],
@@ -577,18 +578,7 @@ export default function BulkImport({ onClose, onSave }) {
                       </label>
                     ))}
                   </fieldset>
-                  <label>
-                    Color
-                    <select
-                      disabled={busy || locked || p.saved}
-                      value={p.color}
-                      onChange={(e) => update(p.id, { color: e.target.value })}
-                    >
-                      {Object.keys(COLORS).map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
-                  </label>
+                  <AppearanceDetails photo={p.photo} color={p.color} pattern={p.pattern} details={p.details} disabled={busy || locked || p.saved} onChange={patch=>update(p.id,patch)}/>
                   <label>
                     Label (optional)
                     <input

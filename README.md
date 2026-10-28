@@ -139,3 +139,16 @@ Predictions are estimates, not guarantees. Conservative score and margin thresho
 The app uses Semi-formal as its existing smart-casual label, allowing jeans there. Strict event semi-formal dress codes may require a suit. Construction gates run before color ranking: neutral colors do not turn denim into formal trousers.
 
 References: [CLIP model and Transformers.js usage](https://huggingface.co/Xenova/clip-vit-base-patch32), [model limitations](https://huggingface.co/openai/clip-vit-base-patch32), [casual chinos and denim](https://www.brooksbrothers.com/mens/casual-pants).
+
+
+### Colour, palette and pattern recognition
+
+Uploads and cropped pieces now share the same colour analyser: sample the central fabric area, classify hue/lightness/chroma, preserve a robust median base colour and separate prominent accents. This replaces the old whole-centre RGB average and nearest display-swatch matching. It reduces background influence but does not segment garments or correct arbitrary lighting. Displayed swatches use the actual measured hex colour.
+
+Pattern recognition compares local CLIP descriptions and corroborates stripes/checks with repeated contrast across fabric scanlines, reducing confusion with folds. Plain, striped, checked and printed are supported; uncertain results remain Unknown. Bulk imports no longer hard-code Solid. New photos and existing legacy items are analysed automatically. User-confirmed colours/patterns are preserved. Edit offers colour/pattern selectors, a fabric-patch colour picker, and photo rechecking. First model loading still takes time. No photo is sent to an external inference service.
+
+Outfit scoring now rewards tonal/analogous shades, a neutral companion to stronger colour, a plain companion to a patterned item, and repeating a pattern accent. Competing bright colours and multiple patterns rank lower. These are style preferences, not universal fashion rules; strict Formal garment-type gates remain unchanged.
+
+References used: [Adobe colour relationships](https://www.adobe.com/uk/creativecloud/design/discover/color-wheel.html), [Charles Tyrwhitt colour and pattern coordination](https://www.charlestyrwhitt.com/ca/fr_CA/editorial-style-tips/how-to-match-a-tie.html), [Proper Cloth business shirts and subtle patterns](https://propercloth.com/business-shirt-guide), [white balance and colour casts](https://www.cambridgeincolour.com/tutorials/white-balance.htm).
+
+Accuracy limits: coloured lighting, folds, partial garments, very fine checks, diagonal stripes and backgrounds within the selected area can still defeat automatic analysis. Similarity scores are not calibrated confidence. Use a close crop in neutral daylight and confirm uncertain results. Colour names are approximate; measured swatches and manual fabric sampling provide finer control.

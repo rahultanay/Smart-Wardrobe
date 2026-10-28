@@ -1,3 +1,4 @@
+import AppearanceDetails from "./AppearanceDetails.jsx";
 import { useState } from "react";
 import {
   CATEGORIES,
@@ -15,7 +16,7 @@ const emptyItem = {
   name: "",
   category: "Shirt",
   color: "White",
-  pattern: "Solid",
+  pattern: "Unknown",
   occasions: ["Everyday"],
   photo: "",
   styles: ["Casual"],
@@ -60,10 +61,10 @@ export default function ItemForm({
       setForm((f) => ({
         ...f,
         ...result,
-        details: { ...f.details, ...result.details, garmentType: "Unknown", typeSource: "" },
+        details: { ...f.details, ...result.details, garmentType: "Unknown", typeSource: "", patternSource: "" },
       }));
       setPhotoNote(
-        "Color estimated from the center of your photo. Please confirm it below.",
+        "Fabric colours are estimated separately; pattern recognition runs below.",
       );
     } catch (e) {
       setError(e.message);
@@ -152,18 +153,8 @@ export default function ItemForm({
               ))}
             </select>
           </label>
-          <label>
-            Main color
-            <select
-              value={form.color}
-              onChange={(e) => change("color", e.target.value)}
-            >
-              {Object.keys(COLORS).map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-          </label>
         </div>
+        <AppearanceDetails photo={form.photo} color={form.color} pattern={form.pattern} details={form.details} disabled={busy} onChange={patch=>setForm(f=>({...f,...patch}))}/>
         <ClothingDetails
           category={form.category}
           photo={form.photo}

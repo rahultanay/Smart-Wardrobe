@@ -211,4 +211,26 @@ class WardrobeIntegrationTest {
   body.put("previousType","Chinos");
   mvc.perform(patch("/api/items/"+id+"/classification").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk()).andExpect(jsonPath("$.details.garmentType").value("Chinos"));
  }
+
+ @Test void appearanceUpdatesPatternAndPaletteButPreservesManualCorrections() throws Exception {
+  String id=create("Blue striped shirt","Shirt").get("id").asText();
+  var details=Map.of("shade","Light blue","hex","#93a8cc","palette","#93a8cc,#d3d7df","colorSource","palette-v2","colorConfidence","mixed");
+  var body=new LinkedHashMap<String,Object>(Map.of("photo",photo,"color","Blue","pattern","Striped","details",details,"patternSource","image"));
+  mvc.perform(patch("/api/items/"+id+"/appearance").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk()).andExpect(jsonPath("$.pattern").value("Striped")).andExpect(jsonPath("$.details.palette").value("#93a8cc,#d3d7df"));
+  var manual=input("Blue striped shirt","Shirt");manual.put("color","Green");manual.put("pattern","Checked");manual.put("details",Map.of("colorSource","manual","patternSource","manual","hex","#668877","palette","#668877","garmentType","Casual shirt"));
+  mvc.perform(put("/api/items/"+id).contentType("application/json").content(json.writeValueAsString(manual))).andExpect(status().isOk());
+  mvc.perform(patch("/api/items/"+id+"/appearance").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk()).andExpect(jsonPath("$.color").value("Green")).andExpect(jsonPath("$.pattern").value("Checked")).andExpect(jsonPath("$.details.hex").value("#668877")).andExpect(jsonPath("$.details.garmentType").value("Casual shirt"));
+ }
+ @Test void appearanceIgnoresStalePhotosAndRoundTripsUncertainPattern() throws Exception {
+  String id=create("Unclear shirt","Shirt").get("id").asText();
+  var details=Map.of("shade","Light blue","hex","#93a8cc","palette","#93a8cc","colorSource","palette-v2","colorConfidence","mixed");
+  var body=new LinkedHashMap<String,Object>(Map.of("photo","old-photo","color","Grey","pattern","Unknown","details",details,"patternSource","image-uncertain"));
+  mvc.perform(patch("/api/items/"+id+"/appearance").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk()).andExpect(jsonPath("$.pattern").value("Solid"));
+  body.put("photo",photo);
+  mvc.perform(patch("/api/items/"+id+"/appearance").contentType("application/json").content(json.writeValueAsString(body))).andExpect(status().isOk()).andExpect(jsonPath("$.pattern").value("Unknown"));
+  String backup=mvc.perform(get("/api/backup")).andReturn().getResponse().getContentAsString();
+  mvc.perform(post("/api/restore").contentType("application/json").content(backup)).andExpect(status().isOk());
+  var invalid=input("Invalid palette","Shirt");invalid.put("details",Map.of("palette","not-a-color"));
+  mvc.perform(post("/api/items").contentType("application/json").content(json.writeValueAsString(invalid))).andExpect(status().isBadRequest());
+ }
 }

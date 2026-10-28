@@ -6,7 +6,7 @@ public class ClothingDetails {
  static Map<String,String> read(String value,String photo,String color) {
   Map<String,String> result=new LinkedHashMap<>();
   try {if(value!=null) result.putAll(JSON.readValue(value,new com.fasterxml.jackson.core.type.TypeReference<Map<String,String>>(){}));}catch(Exception ignored){}
-  if(!result.containsKey("shade"))result.putAll(analyze(photo,color));
+  if(!result.containsKey("shade")) { if("manual".equals(result.get("colorSource"))) result.put("shade",color); else analyze(photo,color).forEach(result::putIfAbsent); }
   result.putIfAbsent("fit","Unknown");result.putIfAbsent("garmentType","Unknown");return result;
  }
  static Map<String,String> analyze(String photo,String color) {

@@ -2159,3 +2159,9 @@ dialog:has(.bulk-import) {
 .combination-photos img.silhouette-pants {height:140px!important}
 .combination-photos img.silhouette-shoes {height:55px!important}
 @media(max-width:600px){.outfit-piece {grid-template-columns:minmax(85px,140px) minmax(90px,1fr);gap:8px}.outfit-piece>div {height:140px}.outfit-piece.silhouette-pants>div {height:180px}}
+
+.fabric-palette {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}.fabric-palette>span:not(:last-child){width:28px;height:28px;border-radius:50%;border:1px solid #8885}.fabric-picker{display:block;width:100%;height:auto;cursor:crosshair;margin-top:12px}.appearance-details{min-width:0}
+
+.maker-context{position:relative;isolation:isolate;overflow:hidden}.maker-context>.maker-arc{position:absolute;inset:0;z-index:-1;overflow:hidden;opacity:.45;pointer-events:none}.maker-arc-canvas{width:100%;height:100%;display:block}.maker-context>*:not(.maker-arc){position:relative}
+.maker-launch-row{display:flex;align-items:center;gap:18px;margin-top:18px}.maker-shader-button{flex:0 1 320px;width:320px;height:112px;min-width:220px;overflow:hidden;border-radius:12px;background:#0d0a12}.maker-shader-button iframe{display:block;width:100%;height:100%;border:0}.maker-generate-button{flex:1;min-width:200px;margin:0}
+@media(max-width:600px){.maker-launch-row{align-items:stretch;flex-direction:column;gap:12px}.maker-shader-button{width:100%;height:112px;min-width:0;flex:none}.maker-generate-button{width:100%;min-width:0}}

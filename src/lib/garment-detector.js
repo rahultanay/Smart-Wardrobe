@@ -4,7 +4,11 @@ const requests = new Map();
 const cache = new Map();
 export function detectGarment(photo, category, onProgress = () => {}) {
   if (!photo || !GARMENT_LABELS[category]) return Promise.resolve(null);
-  const key = category + ':' + photo;
+  return requestAnalysis(photo, category, 'garment', onProgress);
+}
+export function detectAppearance(photo,onProgress=()=>{}) { return requestAnalysis(photo, '', 'appearance', onProgress); }
+function requestAnalysis(photo,category,task,onProgress) {
+  const key = task + ':' + category + ':' + photo;
   if (cache.has(key)) return cache.get(key);
   if (!worker) {
     worker = new Worker(new URL('../workers/garment.worker.js', import.meta.url), { type: 'module' });
@@ -25,7 +29,7 @@ export function detectGarment(photo, category, onProgress = () => {}) {
   const promise = new Promise((resolve, reject) => {
     const timer = setTimeout(() => { requests.delete(id); reject(new Error('Photo recognition timed out. Retry or choose the garment type.')); }, 180000);
     requests.set(id, { resolve, reject, timer, progress: onProgress });
-    worker.postMessage({ id, photo, category });
+    worker.postMessage({ id, photo, category, task });
   }).catch(error => { cache.delete(key); throw error; });
   cache.set(key, promise);
   // Avoid retaining every original photo indefinitely.

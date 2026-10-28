@@ -135,7 +135,7 @@ export function lookStyleScore(top, pants, style) {
       (neutral.has(pants.color) ? 5 : 0) +
       (contrast > 65 ? 5 : 0) +
       (light(pants) < 125 ? 3 : 0) +
-      (top.pattern === "Solid" ? 2 : -2) +
+      (top.pattern === "Solid" || top.pattern === "Striped" ? 2 : top.pattern === "Checked" ? 1 : top.pattern === "Printed" ? -4 : 0) +
       (pants.pattern === "Solid" ? 2 : -3)
     );
   if (style === "Semi-formal")

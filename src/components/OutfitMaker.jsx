@@ -1,3 +1,5 @@
+import { PredictiveArcCanvas } from "@designcodeio/threeui/components/PredictiveArcCanvas";
+import { ShaderButtons } from "@designcodeio/threeui/components/ShaderButtons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DRESS_STYLES,
@@ -70,6 +72,7 @@ export default function OutfitMaker({
   return (
     <div className="outfit-maker">
       <section className="maker-context" aria-labelledby="maker-heading">
+        <div className="maker-arc" aria-hidden="true"><PredictiveArcCanvas className="maker-arc-canvas" mode="light" speed={0.22} spacing={22} dotSize={1.4} archHeight={16} thickness={1} brightness={0.13} hue={145} saturation={0.35} /></div>
         <div>
           <p className="eyebrow">01 · HOW DO YOU WANT TO DRESS?</p>
           <h2 id="maker-heading">What do you want to wear?</h2>
@@ -112,13 +115,18 @@ export default function OutfitMaker({
             ))}
           </select>
         </label>
-        <button
-          className="button primary full"
-          disabled={loading || !connected || pending}
-          onClick={() => setGenerated(contextKey)}
-        >
-          Generate outfits <Icon name="spark" size={18} />
-        </button>
+        <div className="maker-launch-row">
+          <div className="maker-shader-button" aria-label="Animated star portal button study">
+            <ShaderButtons variant="star-portal" mode="dark" hue={0} saturation={1} brightness={1} />
+          </div>
+          <button
+            className="button primary full maker-generate-button"
+            disabled={loading || !connected || pending}
+            onClick={() => setGenerated(contextKey)}
+          >
+            Generate outfits <Icon name="spark" size={18} />
+          </button>
+        </div>
       </section>
       {hasGenerated ? (
         <>

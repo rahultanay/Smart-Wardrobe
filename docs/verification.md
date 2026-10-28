@@ -49,3 +49,12 @@ Java 26.0.2.1 was used on this machine; Java 21 remains recommended for Spring B
 - Running browser classified three existing black denim pairs as Jeans and persisted their types. Other uncertain photos were marked image-uncertain; the existing Dress trousers choice was preserved. Formal generation excluded jeans and unknown pieces, reporting the missing dress shirt.
 - First model preparation in the local Node check took 66 seconds; later inference was 59–86 ms per crop in Node. These are not browser timing guarantees. Browser recognition completed successfully on the saved wardrobe.
 - Personal database backed up locally before deployment; originals and wear history preserved.
+
+
+## Colour and pattern — 23 October 2026
+
+- 36 JavaScript tests and 19 Java integration tests passed. Coverage includes separate blue/white stripe colours, neutral/background/transparency handling, repeated-line evidence, pattern pairing, persisted palettes, stale-photo rejection, manual overrides and invalid palettes.
+- Production build passed. The saved blue shirt was inspected visually: blue with light vertical stripes, previously stored as Solid. Combined detection returned Striped and palette #93a8cc,#c4d1e9. The brown polo returned Solid. Uncertain cases were retained as Unknown rather than force-labelled.
+- Tested inference on the 10 existing saved images locally; this is a small functional check, not a validated general accuracy benchmark. No private photos are included in the repository.
+- Fixed a backend fallback that could overwrite a manually supplied hex colour when the shade label was missing.
+- Saved a local pre-update backup containing original metadata and photos. Wardrobe photos, names, wear history and strict Formal rules preserved.

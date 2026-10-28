@@ -49,7 +49,7 @@ public class WardrobeStore {
     }
     static final Set<String> COLORS = Set.of("White","Black","Grey","Navy","Blue","Beige","Brown","Green","Red","Pink","Purple","Yellow","Orange");
     static final Set<String> OCCASIONS = Set.of("College","Office","Party","Friends","Date","Everyday","Outing");
-    static final Set<String> PATTERNS = Set.of("Solid","Striped","Checked","Printed");
+    static final Set<String> PATTERNS = Set.of("Unknown","Solid","Striped","Checked","Printed");
     final JdbcTemplate db;
     public WardrobeStore(JdbcTemplate db) { this.db = db; }
     public record Item(String id, String name, String category, String color, String pattern, List<String> occasions, String photo, boolean laundry, boolean archived, String createdAt, List<String> styles, Map<String,String> details) {}
@@ -80,6 +80,25 @@ public class WardrobeStore {
         catch(com.fasterxml.jackson.core.JsonProcessingException e) { throw new IllegalArgumentException("Invalid details",e); }
         return find(id);
     }
+    public record Appearance(String photo, String color, String pattern, Map<String,String> details, String patternSource) {}
+    @Transactional
+    public Item appearance(String id, Appearance input) {
+        Item item = find(id);
+        require(input != null && input.details()!=null, "Missing appearance");
+        if (!item.photo().equals(input.photo())) return item;
+        require(COLORS.contains(Objects.toString(input.color(),"")) && PATTERNS.contains(Objects.toString(input.pattern(),"")), "Invalid appearance");
+        require(input.details().keySet().equals(Set.of("shade","hex","palette","colorSource","colorConfidence")), "Invalid appearance details");
+        require("palette-v2".equals(input.details().get("colorSource")), "Invalid colour source");
+        require(Set.of("image","image-uncertain").contains(Objects.toString(input.patternSource(),"")), "Invalid pattern source");
+        var details=new HashMap<>(item.details());
+        boolean colorAuto=!"manual".equals(details.get("colorSource")), patternAuto=!"manual".equals(details.get("patternSource"));
+        if(colorAuto) details.putAll(input.details());
+        if(patternAuto) details.put("patternSource",input.patternSource());
+        String color=colorAuto?input.color():item.color(), pattern=patternAuto?input.pattern():item.pattern();
+        validate(new ItemInput(item.name(),item.category(),color,pattern,item.occasions(),item.photo(),item.styles(),details));
+        db.update("UPDATE wardrobe_item SET color=?,pattern=?,details=? WHERE id=?",color,pattern,ClothingDetails.encode(details),id);
+        return find(id);
+    }
     Item find(String id) {
         return db.query("SELECT * FROM wardrobe_item WHERE id=?",itemMapper,id).stream().findFirst().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Item not found"));
     }
@@ -89,9 +108,10 @@ public class WardrobeStore {
         require(COLORS.contains(Objects.toString(i.color(),"")),"Choose a valid color");
         require(PATTERNS.contains(Objects.toString(i.pattern(),"")),"Choose a valid pattern");
         require(i.occasions()!=null && !i.occasions().isEmpty() && i.occasions().size()<=7 && i.occasions().stream().allMatch(o -> o!=null && OCCASIONS.contains(o)),"Choose at least one valid occasion");
-        require(i.details()==null || (i.details().size()<=6 && i.details().entrySet().stream().allMatch(e -> Set.of("shade","hex","fit","garmentType","styleMode","typeSource").contains(e.getKey()) && e.getValue()!=null && e.getValue().length()<=60)),"Invalid garment details");
+        require(i.details()==null || (i.details().size()<=10 && i.details().entrySet().stream().allMatch(e -> Set.of("shade","hex","fit","garmentType","styleMode","typeSource","palette","colorSource","colorConfidence","patternSource").contains(e.getKey()) && e.getValue()!=null && e.getValue().length()<=60)),"Invalid garment details");
         require(i.details()==null || !i.details().containsKey("fit") || Set.of("Unknown","Skinny","Slim","Regular","Relaxed","Oversized").contains(i.details().get("fit")),"Choose a valid fit");
         require(i.details()==null || !i.details().containsKey("hex") || i.details().get("hex").matches("#[A-Fa-f0-9]{6}"),"Invalid shade color");
+        require(i.details()==null || !i.details().containsKey("palette") || i.details().get("palette").matches("#[A-Fa-f0-9]{6}(,#[A-Fa-f0-9]{6}){0,2}"),"Invalid colour palette");
         var tags=styles(i.styles(),i.category());
         require(!tags.isEmpty() && tags.size()<=4 && tags.stream().allMatch(t -> t!=null && STYLES.contains(t) && suitable(i.category(),t)),"Choose valid dress styles for this category");
         require(i.photo()!=null && i.photo().length()<=2_000_000 && Pattern.matches("data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+",i.photo()),"Add a JPEG, PNG, or WebP photo under 1.5 MB");

@@ -1,3 +1,4 @@
+import { analyzePixels, paletteHarmony, patternCompatibility } from './appearance.js';
 import {
   fitScore,
   shadeEstimate,
@@ -69,7 +70,7 @@ export const COLORS = {
   Yellow: "#d8ba60",
   Orange: "#ca8959",
 };
-export const PATTERNS = ["Solid", "Striped", "Checked", "Printed"];
+export const PATTERNS = ["Unknown", "Solid", "Striped", "Checked", "Printed"];
 const neutrals = new Set(["White", "Black", "Grey", "Navy", "Beige", "Brown"]);
 const pairs = new Set([
   "Blue:Brown",
@@ -192,10 +193,10 @@ export function recommend(
         if (fitScore(top, pants, dressStyle) <= -10) continue;
         const outfit = [top, pants, ...(shoes ? [shoes] : [])];
         const matching =
-          pairScore(top, pants) +
+          pairScore(top, pants) + paletteHarmony(top,pants) + patternCompatibility(top,pants) +
           (shoes ? pairScore(pants, shoes) + pairScore(top, shoes) : 0);
         const printPenalty =
-          Math.max(0, outfit.filter((i) => i.pattern !== "Solid").length - 1) *
+          Math.max(0, outfit.filter((i) => ["Striped","Checked","Printed"].includes(i.pattern)).length - 1) *
           3;
         const key = outfit
           .map((i) => i.id)
@@ -219,7 +220,7 @@ export function recommend(
           prior,
           dressStyle,
           occasion,
-          reason: `${dressStyle === "Formal" ? "Prioritizes restrained colors and clear shirt/pants contrast." : dressStyle === "Semi-formal" ? "Balances a smart neutral base with softer contrast." : "Prioritizes relaxed pieces and flexible color pairings."} ${outfit.some((i) => i.details?.styleMode !== "manual" && (!i.details?.garmentType || i.details.garmentType === "Unknown")) ? "Garment construction is unconfirmed; this is a color-led suggestion. Confirm the garment type for a stricter dress code." : ""} ${pairing} ${top.details?.fit && pants.details?.fit ? `Fit: ${top.details.fit.toLowerCase()} top / ${pants.details.fit.toLowerCase()} pants.` : ""} ${shoes ? `${shoes.color} shoes complete the look.` : "Add suitable shoes to complete this look."}`,
+          reason: `${dressStyle === "Formal" ? "Prioritizes restrained colors and clear shirt/pants contrast." : dressStyle === "Semi-formal" ? "Balances a smart neutral base with softer contrast." : "Prioritizes relaxed pieces and flexible color pairings."} ${outfit.some((i) => i.details?.styleMode !== "manual" && (!i.details?.garmentType || i.details.garmentType === "Unknown")) ? "Garment construction is unconfirmed; this is a color-led suggestion. Confirm the garment type for a stricter dress code." : ""} ${pairing} ${["Striped","Checked","Printed"].includes(top.pattern) && pants.pattern === "Solid" ? "A patterned top with plain pants keeps the look balanced." : ""} ${outfit.some(i=>!i.pattern || i.pattern === "Unknown") ? "Pattern is unconfirmed on one or more pieces." : ""} ${top.details?.fit && pants.details?.fit ? `Fit: ${top.details.fit.toLowerCase()} top / ${pants.details.fit.toLowerCase()} pants.` : ""} ${shoes ? `${shoes.color} shoes complete the look.` : "Add suitable shoes to complete this look."}`,
         });
       }
   const sorted = result.sort(
@@ -290,25 +291,10 @@ export async function photoData(file, { maxSide = 1000 } = {}) {
   const photo = canvas.toDataURL("image/jpeg", 0.8);
   if (photo.length > 2000000)
     throw new Error("Photo is too detailed. Please crop it and try again.");
-  // Sample the center to reduce background influence; this is only a suggestion.
-  const pixels = ctx.getImageData(
-    Math.floor(canvas.width * 0.3),
-    Math.floor(canvas.height * 0.3),
-    Math.max(1, Math.floor(canvas.width * 0.4)),
-    Math.max(1, Math.floor(canvas.height * 0.4)),
-  ).data;
-  let rgb = [0, 0, 0],
-    count = 0;
-  for (let n = 0; n < pixels.length; n += 16) {
-    for (let k = 0; k < 3; k++) rgb[k] += pixels[n + k];
-    count++;
-  }
-  rgb = rgb.map((v) => v / count);
-  const color = Object.entries(COLORS).sort(
-    (a, b) => distance(a[1], rgb) - distance(b[1], rgb),
-  )[0][0];
-  return { photo, color, details: shadeEstimate(rgb, color) };
+  const analysis = analyzePixels(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height);
+  return { photo, ...analysis };
 }
+
 function distance(hex, rgb) {
   return rgb.reduce(
     (s, v, k) => s + (v - parseInt(hex.slice(1 + k * 2, 3 + k * 2), 16)) ** 2,

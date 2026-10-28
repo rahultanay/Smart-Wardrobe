@@ -1,4 +1,5 @@
-import { detectGarment } from "./lib/garment-detector.js";
+import { APPEARANCE_VERSION } from "./lib/appearance.js";
+import { detectAppearance, detectGarment } from "./lib/garment-detector.js";
 import { GARMENT_LABELS } from "./lib/garment-labels.js";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -73,6 +74,18 @@ function App() {
   const [scanTick, setScanTick] = useState(0), [scanStatus, setScanStatus] = useState("");
   useEffect(() => {
     if (!connected || pending || modal || scanBusy.current) return;
+    const appearanceItem = items.find(i => !i.archived && ((i.details?.colorSource !== APPEARANCE_VERSION && i.details?.colorSource !== "manual") || !i.details?.patternSource) && !scanned.current.has("appearance:"+i.id+i.photo));
+    if (appearanceItem) {
+      scanBusy.current=true;
+      scanned.current.add("appearance:"+appearanceItem.id+appearanceItem.photo);
+      setScanStatus(`Checking colours and pattern: ${appearanceItem.name}…`);
+      detectAppearance(appearanceItem.photo,setScanStatus).then(async result=>{
+        const updated=await api(`/items/${appearanceItem.id}/appearance`,"PATCH",{photo:appearanceItem.photo,...result});
+        setItems(all=>all.map(i=>i.id===updated.id?updated:i));
+        setScanStatus(`${updated.name}: ${updated.color}, ${updated.pattern.toLowerCase()}${updated.pattern === "Unknown" ? " — confirm the pattern in Edit" : ""}.`);
+      }).catch(e=>setScanStatus(e.message)).finally(()=>{scanBusy.current=false;setScanTick(t=>t+1);});
+      return;
+    }
     const item = items.find(i => !i.archived && GARMENT_LABELS[i.category] && !i.details?.typeSource && (!i.details?.garmentType || i.details.garmentType === "Unknown") && !scanned.current.has(i.id + i.photo + i.category));
     if (!item) return;
     scanBusy.current = true;
@@ -264,13 +277,13 @@ function App() {
             {i.category}{" "}
             <span
               className="color-dot"
-              style={{ background: COLORS[i.color] }}
+              style={{ background: i.details?.hex || COLORS[i.color] }}
             />{" "}
             {i.details?.shade || i.color}
           </p>
           <h3>{i.name}</h3>
           <p className="hint">
-            {i.details?.garmentType || ""} · Fit: {i.details?.fit || "Unknown"}
+            {i.pattern || "Unknown"} · {i.details?.garmentType || ""} · Fit: {i.details?.fit || "Unknown"}
           </p>
           <p className="item-style-tags">
             {itemStyles(i).join(" · ")}

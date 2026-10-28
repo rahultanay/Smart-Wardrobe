@@ -1,3 +1,4 @@
+import { analyzePixels } from './appearance.js';
 import { shadeEstimate } from "./clothing-details.js";
 import { COLORS } from "./wardrobe.js";
 import { clampBox, rotationLayout } from "./bulk-regions.js";
@@ -28,49 +29,14 @@ export function cropPhoto(image, region) {
     canvas.height,
   );
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const bins = new Map();
-  for (let y = 0; y < canvas.height; y += 3)
-    for (let x = 0; x < canvas.width; x += 3) {
-      const mask = region.mask;
-      if (mask) {
-        const mx = Math.min(
-          mask.width - 1,
-          Math.floor((box.x + (x / canvas.width) * box.w) * mask.width),
-        );
-        const my = Math.min(
-          mask.height - 1,
-          Math.floor((box.y + (y / canvas.height) * box.h) * mask.height),
-        );
-        if (!mask.data[my * mask.width + mx]) continue;
-      } else if (
-        x < canvas.width * 0.2 ||
-        x > canvas.width * 0.8 ||
-        y < canvas.height * 0.2 ||
-        y > canvas.height * 0.8
-      )
-        continue;
-      const p = (y * canvas.width + x) * 4;
-      const rgb = [pixels.data[p], pixels.data[p + 1], pixels.data[p + 2]];
-      const key = rgb.map((v) => Math.floor(v / 32)).join(",");
-      const bin = bins.get(key) || { n: 0, sum: [0, 0, 0] };
-      bin.n++;
-      rgb.forEach((v, k) => (bin.sum[k] += v));
-      bins.set(key, bin);
-    }
-  const dominant = [...bins.values()].sort((a, b) => b.n - a.n)[0];
-  const rgb = dominant
-    ? dominant.sum.map((v) => v / dominant.n)
-    : [180, 180, 180];
-  const color = Object.entries(COLORS).sort(
-    (a, b) => distance(a[1], rgb) - distance(b[1], rgb),
-  )[0][0];
+  const {color,details} = analyzePixels(pixels.data,canvas.width,canvas.height);
   // Keep the real rectangular crop: no generated pixels or reconstructed hidden fabric.
   const layout = rotationLayout(canvas.width, canvas.height, region.rotation);
   if (!layout.angle)
     return {
       photo: canvas.toDataURL("image/jpeg", 0.85),
       color,
-      details: shadeEstimate(rgb, color),
+      details,
     };
   const rotated = document.createElement("canvas");
   rotated.width = layout.width;
@@ -84,7 +50,7 @@ export function cropPhoto(image, region) {
   return {
     photo: rotated.toDataURL("image/jpeg", 0.85),
     color,
-    details: shadeEstimate(rgb, color),
+    details,
   };
 }
 function distance(hex, rgb) {

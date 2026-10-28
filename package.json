@@ -12,6 +12,7 @@
     "test:backend": "cd backend && ./mvnw -B -ntp test"
   },
   "dependencies": {
+    "@designcodeio/threeui": "^1.2.0",
     "@huggingface/transformers": "^4.3.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
